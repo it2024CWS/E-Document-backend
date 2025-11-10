@@ -17,6 +17,7 @@ type Repository interface {
 	Create(ctx context.Context, user *domain.User) error
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	FindByUsername(ctx context.Context, username string) (*domain.User, error)
 	FindAll(ctx context.Context) ([]domain.User, error)
 	FindWithPagination(ctx context.Context, skip, limit int) ([]domain.User, error)
 	Count(ctx context.Context) (int, error)
@@ -59,6 +60,19 @@ func (r *repository) FindByID(ctx context.Context, id string) (*domain.User, err
 
 	var user domain.User
 	err = r.collection.FindOne(ctx, bson.M{"_id": objectID}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to find user: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (r *repository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
+	var user domain.User
+	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("user not found")
@@ -141,7 +155,7 @@ func (r *repository) Update(ctx context.Context, id string, user *domain.User) e
 
 	update := bson.M{
 		"$set": bson.M{
-			"username":  user.Username,
+			"username":   user.Username,
 			"email":      user.Email,
 			"updated_at": user.UpdatedAt,
 		},

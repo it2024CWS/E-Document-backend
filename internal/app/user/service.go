@@ -5,6 +5,7 @@ import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,13 +34,23 @@ func NewService(repo Repository) Service {
 // CreateUser creates a new user
 func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error) {
 	// Check if user with email already exists
-	existingUser, _ := s.repo.FindByEmail(ctx, req.Email)
-	if existingUser != nil {
+	existingEmail, _ := s.repo.FindByEmail(ctx, req.Email)
+	if existingEmail != nil {
 		return nil, util.ErrorResponse(
 			"Email already exists",
 			util.EMAIL_ALREADY_EXISTS,
 			400,
 			fmt.Sprintf("user with email %s already exists", req.Email),
+		)
+	}
+
+	existingUsername, _ := s.repo.FindByUsername(ctx, req.Username)
+	if existingUsername != nil {
+		return nil, util.ErrorResponse(
+			"Username already exists",
+			util.USER_ALREADY_EXISTS,
+			400,
+			fmt.Sprintf("user with username %s already exists", req.Username),
 		)
 	}
 
@@ -56,8 +67,8 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 
 	// Create user object
 	user := &domain.User{
-		Username: req.Username,
-		Email:    req.Email,
+		Username: strings.ToLower(req.Username),
+		Email:    strings.ToLower(req.Email),
 		Password: string(hashedPassword),
 	}
 
