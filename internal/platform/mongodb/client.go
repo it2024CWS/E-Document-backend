@@ -2,8 +2,8 @@ package mongodb
 
 import (
 	"context"
+	"e-document-backend/internal/logger"
 	"fmt"
-	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,7 +36,7 @@ func NewClient(uri, dbName string) (*Client, error) {
 		return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 
-	log.Println("Successfully connected to MongoDB!")
+	logger.Info("Successfully connected to MongoDB!")
 
 	return &Client{
 		MongoDB:  client,
@@ -53,7 +53,7 @@ func (c *Client) Disconnect() error {
 		return fmt.Errorf("failed to disconnect from MongoDB: %w", err)
 	}
 
-	log.Println("Disconnected from MongoDB")
+	logger.Info("Disconnected from MongoDB")
 	return nil
 }
 

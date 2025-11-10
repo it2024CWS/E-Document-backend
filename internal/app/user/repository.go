@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Repository defines the interface for user data access
@@ -17,6 +18,8 @@ type Repository interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindAll(ctx context.Context) ([]domain.User, error)
+	FindWithPagination(ctx context.Context, skip, limit int) ([]domain.User, error)
+	Count(ctx context.Context) (int, error)
 	Update(ctx context.Context, id string, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 }
@@ -96,6 +99,37 @@ func (r *repository) FindAll(ctx context.Context) ([]domain.User, error) {
 	return users, nil
 }
 
+// FindWithPagination retrieves users with pagination
+func (r *repository) FindWithPagination(ctx context.Context, skip, limit int) ([]domain.User, error) {
+	opts := options.Find()
+	opts.SetSkip(int64(skip))
+	opts.SetLimit(int64(limit))
+	opts.SetSort(bson.D{{Key: "created_at", Value: -1}}) // Sort by newest first
+
+	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []domain.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, fmt.Errorf("failed to decode users: %w", err)
+	}
+
+	return users, nil
+}
+
+// Count returns the total number of users
+func (r *repository) Count(ctx context.Context) (int, error) {
+	count, err := r.collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	return int(count), nil
+}
+
 // Update updates a user by ID
 func (r *repository) Update(ctx context.Context, id string, user *domain.User) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
@@ -107,7 +141,7 @@ func (r *repository) Update(ctx context.Context, id string, user *domain.User) e
 
 	update := bson.M{
 		"$set": bson.M{
-			"name":       user.Name,
+			"username":  user.Username,
 			"email":      user.Email,
 			"updated_at": user.UpdatedAt,
 		},

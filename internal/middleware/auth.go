@@ -14,18 +14,18 @@ func AuthMiddleware() echo.MiddlewareFunc {
 			// Get Authorization header
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
-				return util.UnauthorizedResponse(c, "Missing authorization header", nil)
+				return util.HandleError(c, util.ErrorResponse("unauthorized", util.UNAUTHORIZED, 401, "Missing authorization header"))
 			}
 
 			// Check if it starts with "Bearer "
 			if !strings.HasPrefix(authHeader, "Bearer ") {
-				return util.UnauthorizedResponse(c, "Invalid authorization header format", nil)
+				return util.HandleError(c, util.ErrorResponse("unauthorized", util.INVALID_TOKEN, 401, "Invalid authorization header format"))
 			}
 
 			// Extract token
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 			if token == "" {
-				return util.UnauthorizedResponse(c, "Missing token", nil)
+				return util.HandleError(c, util.ErrorResponse("unauthorized", util.INVALID_TOKEN, 401, "Missing token"))
 			}
 
 			// TODO: Implement actual token validation (JWT, etc.)

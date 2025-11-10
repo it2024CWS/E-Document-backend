@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"e-document-backend/internal/app/user"
+	"e-document-backend/internal/config"
+	"e-document-backend/internal/logger"
 	customMiddleware "e-document-backend/internal/middleware"
 	"e-document-backend/internal/platform/mongodb"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,13 +17,34 @@ import (
 )
 
 func main() {
+	// Load configuration
+	cfg := config.Load()
+
+	// Initialize logger
+	logger.Init(logger.Config{
+		Level:      logger.LogLevel(cfg.Logger.Level),
+		Pretty:     cfg.Logger.Pretty,
+		TimeFormat: time.RFC3339,
+	})
+
 	// Create Echo instance
 	e := echo.New()
 
 	// Middleware
-	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+
+	// Request ID middleware (adds unique ID to each request)
+	e.Use(customMiddleware.RequestIDMiddleware())
+
+	// Logger middleware (logs all requests and responses)
+	if cfg.Logger.Level == "debug" {
+		// Detailed logging with request/response body for development
+		e.Use(customMiddleware.DetailedLoggerMiddleware())
+	} else {
+		// Standard logging for production
+		e.Use(customMiddleware.LoggerMiddleware())
+	}
 
 	// Rate limiting middleware
 	e.Use(customMiddleware.RateLimitMiddleware(customMiddleware.RateLimitConfig{
@@ -30,21 +52,10 @@ func main() {
 		BurstSize:         50,
 	}))
 
-	// MongoDB configuration
-	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb+srv://hackterssv:26F0wLf2WShAOuaU@hcu-year--book.uvdycy1.mongodb.net/?retryWrites=true&w=majority&appName=EDocument"
-	}
-
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "e_document_db"
-	}
-
 	// Connect to MongoDB
-	mongoClient, err := mongodb.NewClient(mongoURI, dbName)
+	mongoClient, err := mongodb.NewClient(cfg.Database.MongoURI, cfg.Database.DBName)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		logger.FatalWithErr("Failed to connect to MongoDB", err)
 	}
 	defer mongoClient.Disconnect()
 
@@ -77,35 +88,29 @@ func main() {
 	// protected.Use(customMiddleware.AuthMiddleware())
 	// protected.GET("/protected", someHandler)
 
-	// Server configuration
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
 	// Start server
 	go func() {
-		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+		if err := e.Start(":" + cfg.Server.Port); err != nil && err != http.ErrServerClosed {
+			logger.FatalWithErr("Failed to start server", err)
 		}
 	}()
 
-	log.Printf("Server started on port %s", port)
+	logger.Infof("Server started on port %s", cfg.Server.Port)
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Gracefully shutdown the server with a timeout of 10 seconds
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := e.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.FatalWithErr("Server forced to shutdown", err)
 	}
 
-	log.Println("Server exited")
+	logger.Info("Server exited")
 }
