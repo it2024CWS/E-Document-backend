@@ -3,6 +3,7 @@ module e-document-backend
 go 1.21
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/rs/zerolog v1.34.0

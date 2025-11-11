@@ -10,7 +10,10 @@ func GetAll() []migration.MigrationDefinition {
 		// Register your migrations here in order
 		// Comment out migrations you don't want to run:
 		// Migration001_AddPhoneFieldToUsers(),
-		// Migration002_CreateEmailIndex(),
+		Migration002b_CleanupDuplicateEmails(),
+		Migration002_CreateEmailIndex(),
+		Migration003b_CleanupDuplicateUsernames(),
+		Migration003_CreateUsernameIndex(),
 	}
 }
 

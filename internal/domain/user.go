@@ -18,15 +18,15 @@ type User struct {
 
 // CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
-	Username  string `json:"username" validate:"required"`
-	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=6"`
+	Username string `json:"username" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
 }
 
 // UpdateUserRequest represents the request body for updating a user
 type UpdateUserRequest struct {
-	Username  string `json:"username,omitempty"`
-	Email string `json:"email,omitempty"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
 }
 
 // UserResponse represents the user response (without password)
@@ -47,4 +47,33 @@ func (u *User) ToResponse() UserResponse {
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
+}
+
+// Auth-related structs
+
+// LoginRequest represents the request body for user login
+type LoginRequest struct {
+	UsernameOrEmail string `json:"usernameOrEmail" validate:"required"`
+	Password        string `json:"password" validate:"required"`
+}
+
+// RefreshTokenRequest represents the request body for refreshing token
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" validate:"required"`
+}
+
+// AuthResponse represents the authentication response
+type AuthResponse struct {
+	User         UserResponse `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	ExpiresIn    int64        `json:"expires_in"`
+}
+
+// TokenClaims represents JWT token claims
+type TokenClaims struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Type     string `json:"type"` // "access" or "refresh"
 }

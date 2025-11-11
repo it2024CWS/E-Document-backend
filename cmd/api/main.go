@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"e-document-backend/internal/app/auth"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -64,6 +65,10 @@ func main() {
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
 
+	// Initialize auth module (Handler-Service)
+	authService := auth.NewService(userRepo, cfg)
+	authHandler := auth.NewHandler(authService)
+
 	// API routes
 	api := e.Group("/api/v1")
 
@@ -82,10 +87,19 @@ func main() {
 	// Register user routes
 	userHandler.RegisterRoutes(api)
 
-	// You can add protected routes here with auth middleware
+	// Register auth routes
+	authGroup := api.Group("/auth")
+	authGroup.POST("/login", authHandler.Login)
+	authGroup.POST("/refresh", authHandler.RefreshToken)
+	authGroup.POST("/logout", authHandler.Logout)
+
+	// Protected routes (requires authentication)
+	protected := api.Group("")
+	protected.Use(customMiddleware.AuthMiddleware(authService))
+	protected.GET("/auth/profile", authHandler.GetProfile)
+
+	// You can add more protected routes here with auth middleware
 	// Example:
-	// protected := api.Group("")
-	// protected.Use(customMiddleware.AuthMiddleware())
 	// protected.GET("/protected", someHandler)
 
 	// Start server

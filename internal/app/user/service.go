@@ -33,24 +33,30 @@ func NewService(repo Repository) Service {
 
 // CreateUser creates a new user
 func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error) {
+	// Normalize email and username to lowercase for consistent checking
+	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
+
 	// Check if user with email already exists
-	existingEmail, _ := s.repo.FindByEmail(ctx, req.Email)
+	fmt.Printf(normalizedEmail)
+	existingEmail, _ := s.repo.FindByEmail(ctx, normalizedEmail)
 	if existingEmail != nil {
 		return nil, util.ErrorResponse(
 			"Email already exists",
 			util.EMAIL_ALREADY_EXISTS,
 			400,
-			fmt.Sprintf("user with email %s already exists", req.Email),
+			fmt.Sprintf("user with email %s already exists", normalizedEmail),
 		)
 	}
 
-	existingUsername, _ := s.repo.FindByUsername(ctx, req.Username)
+	// Check if user with username already exists
+	existingUsername, _ := s.repo.FindByUsername(ctx, normalizedUsername)
 	if existingUsername != nil {
 		return nil, util.ErrorResponse(
 			"Username already exists",
 			util.USER_ALREADY_EXISTS,
 			400,
-			fmt.Sprintf("user with username %s already exists", req.Username),
+			fmt.Sprintf("user with username %s already exists", normalizedUsername),
 		)
 	}
 
@@ -67,8 +73,8 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 
 	// Create user object
 	user := &domain.User{
-		Username: strings.ToLower(req.Username),
-		Email:    strings.ToLower(req.Email),
+		Username: normalizedUsername,
+		Email:    normalizedEmail,
 		Password: string(hashedPassword),
 	}
 
@@ -151,22 +157,37 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 	}
 
 	// Check if email is being changed and if it already exists
-	if req.Email != "" && req.Email != existingUser.Email {
-		emailUser, _ := s.repo.FindByEmail(ctx, req.Email)
-		if emailUser != nil {
-			return nil, util.ErrorResponse(
-				"Email already exists",
-				util.EMAIL_ALREADY_EXISTS,
-				400,
-				fmt.Sprintf("user with email %s already exists", req.Email),
-			)
+	if req.Email != "" {
+		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
+		if normalizedEmail != existingUser.Email {
+			emailUser, _ := s.repo.FindByEmail(ctx, normalizedEmail)
+			if emailUser != nil {
+				return nil, util.ErrorResponse(
+					"Email already exists",
+					util.EMAIL_ALREADY_EXISTS,
+					400,
+					fmt.Sprintf("user with email %s already exists", normalizedEmail),
+				)
+			}
+			existingUser.Email = normalizedEmail
 		}
-		existingUser.Email = req.Email
 	}
 
-	// Update fields
+	// Check if username is being changed and if it already exists
 	if req.Username != "" {
-		existingUser.Username = req.Username
+		normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
+		if normalizedUsername != existingUser.Username {
+			usernameUser, _ := s.repo.FindByUsername(ctx, normalizedUsername)
+			if usernameUser != nil {
+				return nil, util.ErrorResponse(
+					"Username already exists",
+					util.USER_ALREADY_EXISTS,
+					400,
+					fmt.Sprintf("user with username %s already exists", normalizedUsername),
+				)
+			}
+			existingUser.Username = normalizedUsername
+		}
 	}
 
 	// Update in database
