@@ -21,8 +21,8 @@ func NewHandler(service Service) *Handler {
 }
 
 // RegisterRoutes registers user routes
-func (h *Handler) RegisterRoutes(e *echo.Group) {
-	users := e.Group("/users")
+func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFunc) {
+	users := e.Group("/v1/users", authMiddleware)
 	users.POST("", h.CreateUser)
 	users.GET("", h.GetAllUsers)
 	users.GET("/:id", h.GetUserByID)
@@ -48,7 +48,7 @@ func (h *Handler) CreateUser(c echo.Context) error {
 		return util.HandleError(c, err)
 	}
 
-	return util.CreatedResponse(c, "User created successfully", user)
+	return util.OKResponse(c, "User created successfully", user, 201)
 }
 
 // GetAllUsers handles GET /users
@@ -56,6 +56,7 @@ func (h *Handler) GetAllUsers(c echo.Context) error {
 	// Get pagination params from query
 	page := c.QueryParam("page")
 	limit := c.QueryParam("limit")
+	search := c.QueryParam("search")
 
 	// Default values
 	pageNum := 1
@@ -75,7 +76,7 @@ func (h *Handler) GetAllUsers(c echo.Context) error {
 		}
 	}
 
-	users, total, err := h.service.GetAllUsers(c.Request().Context(), pageNum, limitNum)
+	users, total, err := h.service.GetAllUsers(c.Request().Context(), pageNum, limitNum, search)
 	if err != nil {
 		return util.HandleError(c, err)
 	}

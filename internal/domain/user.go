@@ -12,28 +12,33 @@ type User struct {
 	Username  string             `json:"username" bson:"username" validate:"required"`
 	Email     string             `json:"email" bson:"email" validate:"required,email"`
 	Password  string             `json:"password,omitempty" bson:"password" validate:"required,min=6"`
+	RoleID    primitive.ObjectID `json:"role_id,omitempty" bson:"role_id,omitempty"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
 // CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
-	Username string `json:"username" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
+	Username string             `json:"username" validate:"required"`
+	Email    string             `json:"email" validate:"required,email"`
+	Password string             `json:"password" validate:"required,min=6"`
+	RoleID   primitive.ObjectID `json:"role_id,omitempty"`
 }
 
 // UpdateUserRequest represents the request body for updating a user
 type UpdateUserRequest struct {
-	Username string `json:"username,omitempty"`
-	Email    string `json:"email,omitempty"`
+	Username string             `json:"username,omitempty"`
+	Email    string             `json:"email,omitempty"`
+	RoleID   primitive.ObjectID `json:"role_id,omitempty"`
 }
+
 
 // UserResponse represents the user response (without password)
 type UserResponse struct {
 	ID        primitive.ObjectID `json:"id"`
 	Username  string             `json:"username"`
 	Email     string             `json:"email"`
+	Role      *RoleResponse      `json:"role,omitempty"`
 	CreatedAt time.Time          `json:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at"`
 }
@@ -44,6 +49,7 @@ func (u *User) ToResponse() UserResponse {
 		ID:        u.ID,
 		Username:  u.Username,
 		Email:     u.Email,
+		Role:      nil,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}
@@ -64,10 +70,7 @@ type RefreshTokenRequest struct {
 
 // AuthResponse represents the authentication response
 type AuthResponse struct {
-	User         UserResponse `json:"user"`
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	ExpiresIn    int64        `json:"expires_in"`
+	User UserResponse `json:"user"`
 }
 
 // TokenClaims represents JWT token claims

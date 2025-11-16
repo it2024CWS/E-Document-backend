@@ -14,10 +14,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// AuthResult contains tokens and response for internal use
+type AuthResult struct {
+	Response     *domain.AuthResponse
+	AccessToken  string
+	RefreshToken string
+}
+
 // Service defines the interface for authentication business logic
 type Service interface {
-	Login(ctx context.Context, req domain.LoginRequest) (*domain.AuthResponse, error)
-	RefreshToken(ctx context.Context, refreshToken string) (*domain.AuthResponse, error)
+	Login(ctx context.Context, req domain.LoginRequest) (*AuthResult, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*AuthResult, error)
 	GetProfile(ctx context.Context, userID string) (*domain.UserResponse, error)
 	ValidateAccessToken(tokenString string) (*domain.TokenClaims, error)
 	ValidateRefreshToken(tokenString string) (*domain.TokenClaims, error)
@@ -38,7 +45,7 @@ func NewService(userRepo user.Repository, cfg *config.Config) Service {
 }
 
 // Login authenticates a user with username/email and password
-func (s *service) Login(ctx context.Context, req domain.LoginRequest) (*domain.AuthResponse, error) {
+func (s *service) Login(ctx context.Context, req domain.LoginRequest) (*AuthResult, error) {
 	// Normalize username or email to lowercase
 	usernameOrEmail := strings.ToLower(strings.TrimSpace(req.UsernameOrEmail))
 
@@ -93,18 +100,19 @@ func (s *service) Login(ctx context.Context, req domain.LoginRequest) (*domain.A
 		)
 	}
 
-	response := &domain.AuthResponse{
-		User:         user.ToResponse(),
+	result := &AuthResult{
+		Response: &domain.AuthResponse{
+			User: user.ToResponse(),
+		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    s.cfg.JWT.AccessTokenExpiry,
 	}
 
-	return response, nil
+	return result, nil
 }
 
 // RefreshToken generates new tokens using a valid refresh token
-func (s *service) RefreshToken(ctx context.Context, refreshToken string) (*domain.AuthResponse, error) {
+func (s *service) RefreshToken(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	// Validate refresh token
 	claims, err := s.ValidateRefreshToken(refreshToken)
 	if err != nil {
@@ -148,14 +156,15 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (*domai
 		)
 	}
 
-	response := &domain.AuthResponse{
-		User:         user.ToResponse(),
+	result := &AuthResult{
+		Response: &domain.AuthResponse{
+			User: user.ToResponse(),
+		},
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
-		ExpiresIn:    s.cfg.JWT.AccessTokenExpiry,
 	}
 
-	return response, nil
+	return result, nil
 }
 
 // GetProfile retrieves user profile by user ID

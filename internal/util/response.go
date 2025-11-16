@@ -24,14 +24,13 @@ func SuccessResponse(c echo.Context, statusCode int, message string, data interf
 	})
 }
 
-// CreatedResponse returns a 201 Created response
-func CreatedResponse(c echo.Context, message string, data interface{}) error {
-	return SuccessResponse(c, http.StatusCreated, message, data)
-}
-
-// OKResponse returns a 200 OK response
-func OKResponse(c echo.Context, message string, data interface{}) error {
-	return SuccessResponse(c, http.StatusOK, message, data)
+// OKResponse returns a success response with optional status code (default 200)
+func OKResponse(c echo.Context, message string, data interface{}, statusCode ...int) error {
+	code := http.StatusOK
+	if len(statusCode) > 0 {
+		code = statusCode[0]
+	}
+	return SuccessResponse(c, code, message, data)
 }
 
 // PaginationInfo represents pagination metadata

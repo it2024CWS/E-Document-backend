@@ -43,7 +43,7 @@ test:
 # Install Air for hot reload (development)
 install-air:
 	@echo "Installing Air..."
-	go install github.com/cosmtrek/air@latest
+	go install github.com/air-verse/air@latest
 	@echo "Air installed! Use 'make air' to run with hot reload"
 
 # Run with Air hot reload

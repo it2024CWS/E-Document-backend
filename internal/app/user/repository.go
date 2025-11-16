@@ -18,9 +18,8 @@ type Repository interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
-	FindAll(ctx context.Context) ([]domain.User, error)
-	FindWithPagination(ctx context.Context, skip, limit int) ([]domain.User, error)
-	Count(ctx context.Context) (int, error)
+	FindAll(ctx context.Context, skip int, limit int, search string) ([]domain.User, error)
+	Count(ctx context.Context, search string) (int, error)
 	Update(ctx context.Context, id string, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 }
@@ -37,7 +36,7 @@ func NewRepository(db *mongo.Database) Repository {
 	}
 }
 
-// Create inserts a new user into the database
+// NOTE Create inserts a new user into the database
 func (r *repository) Create(ctx context.Context, user *domain.User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
@@ -51,7 +50,7 @@ func (r *repository) Create(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
-// FindByID retrieves a user by ID
+// NOTE FindByID retrieves a user by ID
 func (r *repository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -70,6 +69,7 @@ func (r *repository) FindByID(ctx context.Context, id string) (*domain.User, err
 	return &user, nil
 }
 
+// NOTE FindByUsername retrieves a user by username
 func (r *repository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var user domain.User
 	err := r.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
@@ -83,7 +83,7 @@ func (r *repository) FindByUsername(ctx context.Context, username string) (*doma
 	return &user, nil
 }
 
-// FindByEmail retrieves a user by email
+// NOTE FindByEmail retrieves a user by email
 func (r *repository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
@@ -97,30 +97,31 @@ func (r *repository) FindByEmail(ctx context.Context, email string) (*domain.Use
 	return &user, nil
 }
 
-// FindAll retrieves all users
-func (r *repository) FindAll(ctx context.Context) ([]domain.User, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to find users: %w", err)
+// buildSearchFilter creates a filter for searching users by username or email
+func (r *repository) buildSearchFilter(search string) bson.M {
+	filter := bson.M{}
+	if search != "" {
+		filter = bson.M{
+			"$or": []bson.M{
+				{"username": bson.M{"$regex": search, "$options": "i"}},
+				{"email": bson.M{"$regex": search, "$options": "i"}},
+			},
+		}
 	}
-	defer cursor.Close(ctx)
-
-	var users []domain.User
-	if err := cursor.All(ctx, &users); err != nil {
-		return nil, fmt.Errorf("failed to decode users: %w", err)
-	}
-
-	return users, nil
+	return filter
 }
 
-// FindWithPagination retrieves users with pagination
-func (r *repository) FindWithPagination(ctx context.Context, skip, limit int) ([]domain.User, error) {
+// NOTE FindAll retrieves all users
+func (r *repository) FindAll(ctx context.Context, skip int, limit int, search string) ([]domain.User, error) {
 	opts := options.Find()
 	opts.SetSkip(int64(skip))
 	opts.SetLimit(int64(limit))
 	opts.SetSort(bson.D{{Key: "created_at", Value: -1}}) // Sort by newest first
 
-	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	// Build filter with search
+	filter := r.buildSearchFilter(search)
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find users: %w", err)
 	}
@@ -134,9 +135,12 @@ func (r *repository) FindWithPagination(ctx context.Context, skip, limit int) ([
 	return users, nil
 }
 
-// Count returns the total number of users
-func (r *repository) Count(ctx context.Context) (int, error) {
-	count, err := r.collection.CountDocuments(ctx, bson.M{})
+// NOTE Count returns the total number of users
+func (r *repository) Count(ctx context.Context, search string) (int, error) {
+	// Build filter with search
+	filter := r.buildSearchFilter(search)
+
+	count, err := r.collection.CountDocuments(ctx, filter)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count users: %w", err)
 	}
@@ -144,7 +148,7 @@ func (r *repository) Count(ctx context.Context) (int, error) {
 	return int(count), nil
 }
 
-// Update updates a user by ID
+// NOTE Update updates a user by ID
 func (r *repository) Update(ctx context.Context, id string, user *domain.User) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -173,7 +177,7 @@ func (r *repository) Update(ctx context.Context, id string, user *domain.User) e
 	return nil
 }
 
-// Delete deletes a user by ID
+// NOTE Delete deletes a user by ID
 func (r *repository) Delete(ctx context.Context, id string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {

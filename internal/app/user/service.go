@@ -6,6 +6,7 @@ import (
 	"e-document-backend/internal/util"
 	"fmt"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -14,7 +15,7 @@ import (
 type Service interface {
 	CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error)
 	GetUserByID(ctx context.Context, id string) (*domain.UserResponse, error)
-	GetAllUsers(ctx context.Context, page, limit int) ([]domain.UserResponse, int, error)
+	GetAllUsers(ctx context.Context, page, limit int, search string) ([]domain.UserResponse, int, error)
 	UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 }
@@ -31,14 +32,13 @@ func NewService(repo Repository) Service {
 	}
 }
 
-// CreateUser creates a new user
+// NOTE CreateUser creates a new user
 func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error) {
 	// Normalize email and username to lowercase for consistent checking
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 	normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
 
 	// Check if user with email already exists
-	fmt.Printf(normalizedEmail)
 	existingEmail, _ := s.repo.FindByEmail(ctx, normalizedEmail)
 	if existingEmail != nil {
 		return nil, util.ErrorResponse(
@@ -92,7 +92,7 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 	return &response, nil
 }
 
-// GetUserByID retrieves a user by ID
+// NOTE GetUserByID retrieves a user by ID
 func (s *service) GetUserByID(ctx context.Context, id string) (*domain.UserResponse, error) {
 	user, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -108,33 +108,54 @@ func (s *service) GetUserByID(ctx context.Context, id string) (*domain.UserRespo
 	return &response, nil
 }
 
-// GetAllUsers retrieves all users with pagination
-func (s *service) GetAllUsers(ctx context.Context, page, limit int) ([]domain.UserResponse, int, error) {
-	// Get total count
-	total, err := s.repo.Count(ctx)
-	if err != nil {
+// NOTE GetAllUsers retrieves all users with pagination
+func (s *service) GetAllUsers(ctx context.Context, page, limit int, search string) ([]domain.UserResponse, int, error) {
+	// Calculate skip
+	skip := (page - 1) * limit
+
+	// Use WaitGroup and channels to run count and find in parallel
+	var wg sync.WaitGroup
+	var total int
+	var users []domain.User
+	var countErr, findErr error
+
+	wg.Add(2)
+
+	// Get total count in parallel
+	go func() {
+		defer wg.Done()
+		total, countErr = s.repo.Count(ctx, search)
+	}()
+
+	// Get paginated users in parallel
+	go func() {
+		defer wg.Done()
+		users, findErr = s.repo.FindAll(ctx, skip, limit, search)
+	}()
+
+	// Wait for both operations to complete
+	wg.Wait()
+
+	// Check for errors
+	if countErr != nil {
 		return nil, 0, util.ErrorResponse(
 			"Failed to count users",
 			util.DATABASE_ERROR,
 			500,
-			err.Error(),
+			countErr.Error(),
 		)
 	}
 
-	// Calculate skip
-	skip := (page - 1) * limit
-
-	// Get paginated users
-	users, err := s.repo.FindWithPagination(ctx, skip, limit)
-	if err != nil {
+	if findErr != nil {
 		return nil, 0, util.ErrorResponse(
 			"Failed to fetch users",
 			util.DATABASE_ERROR,
 			500,
-			err.Error(),
+			findErr.Error(),
 		)
 	}
 
+	// Convert to responses
 	responses := make([]domain.UserResponse, len(users))
 	for i, user := range users {
 		responses[i] = user.ToResponse()

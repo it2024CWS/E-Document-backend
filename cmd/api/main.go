@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"e-document-backend/internal/app/auth"
+	"e-document-backend/internal/app/role"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -65,12 +66,17 @@ func main() {
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
 
+	// Initialize role module (Handler-Service-Repository)
+	roleRepo := role.NewRepository(mongoClient.Database)
+	roleService := role.NewService(roleRepo)
+	roleHandler := role.NewHandler(roleService)
+
 	// Initialize auth module (Handler-Service)
 	authService := auth.NewService(userRepo, cfg)
 	authHandler := auth.NewHandler(authService)
 
 	// API routes
-	api := e.Group("/api/v1")
+	api := e.Group("/api")
 
 	// Health check endpoint
 	api.GET("/health", func(c echo.Context) error {
@@ -85,22 +91,10 @@ func main() {
 	})
 
 	// Register user routes
-	userHandler.RegisterRoutes(api)
-
-	// Register auth routes
-	authGroup := api.Group("/auth")
-	authGroup.POST("/login", authHandler.Login)
-	authGroup.POST("/refresh", authHandler.RefreshToken)
-	authGroup.POST("/logout", authHandler.Logout)
-
-	// Protected routes (requires authentication)
-	protected := api.Group("")
-	protected.Use(customMiddleware.AuthMiddleware(authService))
-	protected.GET("/auth/profile", authHandler.GetProfile)
-
-	// You can add more protected routes here with auth middleware
-	// Example:
-	// protected.GET("/protected", someHandler)
+	userHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	roleHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register auth routes (with middleware for protected routes)
+	authHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 
 	// Start server
 	go func() {
