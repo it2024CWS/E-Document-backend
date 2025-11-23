@@ -66,7 +66,7 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 			"Invalid role",
 			util.INVALID_INPUT,
 			400,
-			"role must be admin, editor, or viewer",
+			"role must be Director, DepartmentManager, SectorManager, or Employee",
 		)
 	}
 
@@ -83,10 +83,15 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 
 	// Create user object
 	user := &domain.User{
-		Username: normalizedUsername,
-		Email:    normalizedEmail,
-		Password: string(hashedPassword),
-		Role:     req.Role,
+		Username:     normalizedUsername,
+		Email:        normalizedEmail,
+		Password:     string(hashedPassword),
+		Role:         req.Role,
+		Phone:        req.Phone,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		DepartmentID: req.DepartmentID,
+		SectorID:     req.SectorID,
 	}
 
 	// Save to database
@@ -229,10 +234,39 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 				"Invalid role",
 				util.INVALID_INPUT,
 				400,
-				"role must be admin, editor, or viewer",
+				"role must be Director, DepartmentManager, SectorManager, or Employee",
 			)
 		}
 		existingUser.Role = req.Role
+	}
+
+	// Update phone if provided
+	if req.Phone != "" {
+		existingUser.Phone = req.Phone
+	}
+
+	// Update first name if provided
+	if req.FirstName != "" {
+		existingUser.FirstName = req.FirstName
+	}
+
+	// Update last name if provided
+	if req.LastName != "" {
+		existingUser.LastName = req.LastName
+	}
+
+	// Update password if provided
+	if req.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, util.ErrorResponse(
+				"Failed to hash password",
+				util.INTERNAL_SERVER_ERROR,
+				500,
+				err.Error(),
+			)
+		}
+		existingUser.Password = string(hashedPassword)
 	}
 
 	// Update in database

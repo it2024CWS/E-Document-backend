@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"e-document-backend/internal/app/auth"
-	"e-document-backend/internal/app/role"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -80,11 +79,6 @@ func main() {
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
 
-	// Initialize role module (Handler-Service-Repository)
-	roleRepo := role.NewRepository(mongoClient.Database)
-	roleService := role.NewService(roleRepo)
-	roleHandler := role.NewHandler(roleService)
-
 	// Initialize auth module (Handler-Service)
 	authService := auth.NewService(userRepo, cfg)
 	authHandler := auth.NewHandler(authService)
@@ -106,7 +100,6 @@ func main() {
 
 	// Register user routes
 	userHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
-	roleHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register auth routes (with middleware for protected routes)
 	authHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 

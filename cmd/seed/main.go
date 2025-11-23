@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"e-document-backend/internal/app/role"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/domain"
@@ -35,28 +34,10 @@ func main() {
 
 	// Initialize repositories
 	userRepo := user.NewRepository(mongoClient.Database)
-	roleRepo := role.NewRepository(mongoClient.Database)
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
-	// Create Admin role
-	adminRole, err := roleRepo.FindByName(ctx, "Admin")
-	if err != nil {
-		// Role doesn't exist, create it
-		adminRole = &domain.Role{
-			Name: "Admin",
-		}
-		if err := roleRepo.Create(ctx, adminRole); err != nil {
-			logger.FatalWithErr("Failed to create Admin role", err)
-		}
-		logger.Info("✓ Admin role created successfully!")
-		logger.Infof("  Role ID: %s", adminRole.ID.Hex())
-	} else {
-		logger.Info("Admin role already exists.")
-	}
-
 	// Check if admin user already exists
 	existingAdmin, _ := userRepo.FindByEmail(ctx, cfg.Admin.Email)
 	if existingAdmin != nil {

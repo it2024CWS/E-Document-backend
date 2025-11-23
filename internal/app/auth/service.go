@@ -183,100 +183,100 @@ func (s *service) GetProfile(ctx context.Context, userID string) (*domain.UserRe
 	return &response, nil
 }
 
+// buildUserClaims creates JWT claims for a user
+func (s *service) buildUserClaims(user *domain.User, tokenType string, expiry int64) jwt.MapClaims {
+	return jwt.MapClaims{
+		"user_id":       user.ID.Hex(),
+		"username":      user.Username,
+		"email":         user.Email,
+		"phone":         user.Phone,
+		"first_name":    user.FirstName,
+		"last_name":     user.LastName,
+		"role":          user.Role.String(),
+		"department_id": user.DepartmentID,
+		"sector_id":     user.SectorID,
+		"type":          tokenType,
+		"exp":           time.Now().Add(time.Duration(expiry) * time.Second).Unix(),
+		"iat":           time.Now().Unix(),
+	}
+}
+
+// generateToken creates and signs a JWT token
+func (s *service) generateToken(claims jwt.MapClaims, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
 // generateAccessToken creates a new access token for the user
 func (s *service) generateAccessToken(user *domain.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  user.ID.Hex(),
-		"username": user.Username,
-		"email":    user.Email,
-		"type":     "access",
-		"exp":      time.Now().Add(time.Duration(s.cfg.JWT.AccessTokenExpiry) * time.Second).Unix(),
-		"iat":      time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.cfg.JWT.AccessTokenSecret))
+	claims := s.buildUserClaims(user, "access", s.cfg.JWT.AccessTokenExpiry)
+	return s.generateToken(claims, s.cfg.JWT.AccessTokenSecret)
 }
 
 // generateRefreshToken creates a new refresh token for the user
 func (s *service) generateRefreshToken(user *domain.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":  user.ID.Hex(),
-		"username": user.Username,
-		"email":    user.Email,
-		"type":     "refresh",
-		"exp":      time.Now().Add(time.Duration(s.cfg.JWT.RefreshTokenExpiry) * time.Second).Unix(),
-		"iat":      time.Now().Unix(),
+	claims := s.buildUserClaims(user, "refresh", s.cfg.JWT.RefreshTokenExpiry)
+	return s.generateToken(claims, s.cfg.JWT.RefreshTokenSecret)
+}
+
+// parseTokenClaims extracts TokenClaims from JWT MapClaims
+func parseTokenClaims(claims jwt.MapClaims) *domain.TokenClaims {
+	userID, _ := claims["user_id"].(string)
+	username, _ := claims["username"].(string)
+	email, _ := claims["email"].(string)
+	phone, _ := claims["phone"].(string)
+	firstName, _ := claims["first_name"].(string)
+	lastName, _ := claims["last_name"].(string)
+	role, _ := claims["role"].(string)
+	departmentID, _ := claims["department_id"].(string)
+	sectorID, _ := claims["sector_id"].(string)
+	tokenType, _ := claims["type"].(string)
+
+	return &domain.TokenClaims{
+		UserID:       userID,
+		Username:     username,
+		Email:        email,
+		Phone:        phone,
+		FirstName:    firstName,
+		LastName:     lastName,
+		Role:         role,
+		DepartmentID: departmentID,
+		SectorID:     sectorID,
+		Type:         tokenType,
+	}
+}
+
+// validateToken validates a JWT token with the given secret and expected type
+func (s *service) validateToken(tokenString, secret, expectedType string) (*domain.TokenClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(s.cfg.JWT.RefreshTokenSecret))
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		tokenType, ok := claims["type"].(string)
+		if !ok || tokenType != expectedType {
+			return nil, fmt.Errorf("invalid token type: expected %s, got %s", expectedType, tokenType)
+		}
+
+		return parseTokenClaims(claims), nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
 }
 
 // ValidateAccessToken validates and parses an access token
 func (s *service) ValidateAccessToken(tokenString string) (*domain.TokenClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.cfg.JWT.AccessTokenSecret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		tokenType, ok := claims["type"].(string)
-		if !ok || tokenType != "access" {
-			return nil, fmt.Errorf("invalid token type")
-		}
-
-		userID, _ := claims["user_id"].(string)
-		username, _ := claims["username"].(string)
-		email, _ := claims["email"].(string)
-
-		return &domain.TokenClaims{
-			UserID:   userID,
-			Username: username,
-			Email:    email,
-			Type:     tokenType,
-		}, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
+	return s.validateToken(tokenString, s.cfg.JWT.AccessTokenSecret, "access")
 }
 
 // ValidateRefreshToken validates and parses a refresh token
 func (s *service) ValidateRefreshToken(tokenString string) (*domain.TokenClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(s.cfg.JWT.RefreshTokenSecret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		tokenType, ok := claims["type"].(string)
-		if !ok || tokenType != "refresh" {
-			return nil, fmt.Errorf("invalid token type")
-		}
-
-		userID, _ := claims["user_id"].(string)
-		username, _ := claims["username"].(string)
-		email, _ := claims["email"].(string)
-
-		return &domain.TokenClaims{
-			UserID:   userID,
-			Username: username,
-			Email:    email,
-			Type:     tokenType,
-		}, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
+	return s.validateToken(tokenString, s.cfg.JWT.RefreshTokenSecret, "refresh")
 }

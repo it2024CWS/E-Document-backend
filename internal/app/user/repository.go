@@ -159,10 +159,16 @@ func (r *repository) Update(ctx context.Context, id string, user *domain.User) e
 
 	update := bson.M{
 		"$set": bson.M{
-			"username":   user.Username,
-			"email":      user.Email,
-			"role":       user.Role,
-			"updated_at": user.UpdatedAt,
+			"username":      user.Username,
+			"email":         user.Email,
+			"role":          user.Role,
+			"phone":         user.Phone,
+			"first_name":    user.FirstName,
+			"last_name":     user.LastName,
+			"password":      user.Password,
+			"department_id": user.DepartmentID,
+			"sector_id":     user.SectorID,
+			"updated_at":    user.UpdatedAt,
 		},
 	}
 
