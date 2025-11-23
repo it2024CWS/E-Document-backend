@@ -1,0 +1,498 @@
+basePath: /api
+definitions:
+  e-document-backend_internal_domain.CreateUserRequest:
+    properties:
+      department_id:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
+        enum:
+        - Director
+        - DepartmentManager
+        - SectorManager
+        - Employee
+      sector_id:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    - phone
+    - role
+    - username
+    type: object
+  e-document-backend_internal_domain.LoginRequest:
+    properties:
+      password:
+        type: string
+      usernameOrEmail:
+        type: string
+    required:
+    - password
+    - usernameOrEmail
+    type: object
+  e-document-backend_internal_domain.UpdateUserRequest:
+    properties:
+      department_id:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
+        enum:
+        - Director
+        - DepartmentManager
+        - SectorManager
+        - Employee
+      sector_id:
+        type: string
+      username:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UserResponse:
+    properties:
+      created_at:
+        type: string
+      department_id:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
+      sector_id:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UserRole:
+    enum:
+    - Director
+    - DepartmentManager
+    - SectorManager
+    - Employee
+    type: string
+    x-enum-varnames:
+    - RoleDirector
+    - RoleDepartmentManager
+    - RoleSectorManager
+    - RoleEmployee
+  e-document-backend_internal_util.ErrorCode:
+    enum:
+    - UNAUTHORIZED
+    - INCORRECT_PASSWORD
+    - INVALID_CREDENTIALS
+    - TOKEN_EXPIRED
+    - INVALID_TOKEN
+    - FORBIDDEN
+    - VALIDATION_ERROR
+    - MISSING_REQUIRED_FIELD
+    - INVALID_INPUT
+    - INTERNAL_SERVER_ERROR
+    - DATABASE_ERROR
+    - CONFIG_NOT_SET
+    - USER_NOT_FOUND
+    - USER_ALREADY_EXISTS
+    - EMAIL_ALREADY_EXISTS
+    - ROLE_NOT_FOUND
+    - ROLE_ALREADY_EXISTS
+    type: string
+    x-enum-varnames:
+    - UNAUTHORIZED
+    - INCORRECT_PASSWORD
+    - INVALID_CREDENTIALS
+    - TOKEN_EXPIRED
+    - INVALID_TOKEN
+    - FORBIDDEN
+    - VALIDATION_ERROR
+    - MISSING_REQUIRED_FIELD
+    - INVALID_INPUT
+    - INTERNAL_SERVER_ERROR
+    - DATABASE_ERROR
+    - CONFIG_NOT_SET
+    - USER_NOT_FOUND
+    - USER_ALREADY_EXISTS
+    - EMAIL_ALREADY_EXISTS
+    - ROLE_NOT_FOUND
+    - ROLE_ALREADY_EXISTS
+  e-document-backend_internal_util.PaginatedData:
+    properties:
+      items: {}
+      pagination:
+        $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
+    type: object
+  e-document-backend_internal_util.PaginationInfo:
+    properties:
+      currentPage:
+        type: integer
+      itemsPerPage:
+        type: integer
+      totalItems:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  e-document-backend_internal_util.Response:
+    properties:
+      data: {}
+      error_code:
+        $ref: '#/definitions/e-document-backend_internal_util.ErrorCode'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:5000
+info:
+  contact:
+    email: support@edocument.com
+    name: API Support
+  description: API for E-Document Management System
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: E-Document API
+  version: "1.0"
+paths:
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with username/email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      summary: User login
+      tags:
+      - Auth
+  /v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Clear authentication cookies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      summary: Logout user
+      tags:
+      - Auth
+  /v1/auth/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - Auth
+  /v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get new access and refresh tokens using a valid refresh token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      summary: Refresh access token
+      tags:
+      - Auth
+  /v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all users with pagination and search
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by username or email
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new user
+      tags:
+      - Users
+  /v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user account
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user information
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated user information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

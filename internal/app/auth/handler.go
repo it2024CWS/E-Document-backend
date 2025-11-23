@@ -31,9 +31,20 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 
 	// Protected routes (requires authentication)
 	auth.GET("/profile", h.GetProfile, authMiddleware)
-} // Login handles POST /auth/login
+}
 
-// NOTE - Login
+// Login godoc
+//
+//	@Summary		User login
+//	@Description	Authenticate user with username/email and password
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		domain.LoginRequest	true	"Login credentials"
+//	@Success		200		{object}	util.Response{data=domain.UserResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Router			/v1/auth/login [post]
 func (h *Handler) Login(c echo.Context) error {
 	var req domain.LoginRequest
 
@@ -57,8 +68,17 @@ func (h *Handler) Login(c echo.Context) error {
 	return util.OKResponse(c, "Login successful", result.Response.User)
 }
 
-// NOTE - Refresh Token
-// RefreshToken handles POST /auth/refresh
+// RefreshToken godoc
+//
+//	@Summary		Refresh access token
+//	@Description	Get new access and refresh tokens using a valid refresh token
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	util.Response{data=domain.UserResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Router			/v1/auth/refresh [post]
 func (h *Handler) RefreshToken(c echo.Context) error {
 	// Try to get refresh token from cookie first, then from body
 	refreshToken := h.getRefreshTokenFromCookie(c)
@@ -85,8 +105,18 @@ func (h *Handler) RefreshToken(c echo.Context) error {
 	return util.OKResponse(c, "Token refreshed successfully", result.Response.User)
 }
 
-// NOTE - Get Profile
-// GetProfile handles GET /auth/profile
+// GetProfile godoc
+//
+//	@Summary		Get user profile
+//	@Description	Get authenticated user's profile information
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	util.Response{data=domain.UserResponse}
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
+//	@Router			/v1/auth/profile [get]
 func (h *Handler) GetProfile(c echo.Context) error {
 	// Get user ID from context (set by auth middleware)
 	userID, ok := c.Get("user_id").(string)
@@ -102,8 +132,15 @@ func (h *Handler) GetProfile(c echo.Context) error {
 	return util.OKResponse(c, "Profile retrieved successfully", result)
 }
 
-// NOTE - Logout
-// Logout handles POST /auth/logout
+// Logout godoc
+//
+//	@Summary		Logout user
+//	@Description	Clear authentication cookies
+//	@Tags			Auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	util.Response
+//	@Router			/v1/auth/logout [post]
 func (h *Handler) Logout(c echo.Context) error {
 	// Clear cookies
 	h.clearCookies(c)

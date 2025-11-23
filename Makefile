@@ -70,3 +70,8 @@ migrate-down:
 migrate-status:
 	@echo "Migration status:"
 	go run cmd/migrate/main.go -status
+
+# swagger :generate swagger docs
+swagger:
+	@echo "Generating Swagger documentation..."
+	swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal

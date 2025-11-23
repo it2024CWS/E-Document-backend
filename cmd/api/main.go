@@ -13,9 +13,31 @@ import (
 	"os/signal"
 	"time"
 
+	_ "e-document-backend/docs" // Import generated docs
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
+
+//	@title			E-Document API
+//	@version		1.0
+//	@description	API for E-Document Management System
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.email	support@edocument.com
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+//	@host		localhost:5000
+//	@BasePath	/api
+
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Type "Bearer" followed by a space and JWT token.
 
 func main() {
 	// Load configuration
@@ -86,6 +108,9 @@ func main() {
 	// API routes
 	api := e.Group("/api")
 
+	// Swagger documentation
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	// Health check endpoint
 	api.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
@@ -110,7 +135,7 @@ func main() {
 		}
 	}()
 
-	logger.Infof("Server started on port %s", cfg.Server.Port)
+	logger.Infof("Server started on port %s \n swagger available at http://localhost:%s/swagger/index.html", cfg.Server.Port, cfg.Server.Port)
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)

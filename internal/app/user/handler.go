@@ -30,7 +30,19 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 	users.DELETE("/:id", h.DeleteUser)
 }
 
-// CreateUser handles POST /users
+// CreateUser godoc
+//
+//	@Summary		Create a new user
+//	@Description	Create a new user account
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		domain.CreateUserRequest	true	"User information"
+//	@Success		201		{object}	util.Response{data=domain.UserResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Router			/v1/users [post]
 func (h *Handler) CreateUser(c echo.Context) error {
 	var req domain.CreateUserRequest
 
@@ -51,7 +63,21 @@ func (h *Handler) CreateUser(c echo.Context) error {
 	return util.OKResponse(c, "User created successfully", user, 201)
 }
 
-// GetAllUsers handles GET /users
+// GetAllUsers godoc
+//
+//	@Summary		Get all users
+//	@Description	Get list of all users with pagination and search
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			page	query		int		false	"Page number"	default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search by username or email"
+//	@Success		200		{object}	util.Response{data=util.PaginatedData}
+//	@Failure		401		{object}	util.Response
+//	@Failure		500		{object}	util.Response
+//	@Router			/v1/users [get]
 func (h *Handler) GetAllUsers(c echo.Context) error {
 	// Get pagination params from query
 	page := c.QueryParam("page")
@@ -93,7 +119,19 @@ func (h *Handler) GetAllUsers(c echo.Context) error {
 	return util.OKResponseWithPagination(c, "Users retrieved successfully", users, pagination)
 }
 
-// GetUserByID handles GET /users/:id
+// GetUserByID godoc
+//
+//	@Summary		Get user by ID
+//	@Description	Get detailed information of a specific user
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"User ID"
+//	@Success		200	{object}	util.Response{data=domain.UserResponse}
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
+//	@Router			/v1/users/{id} [get]
 func (h *Handler) GetUserByID(c echo.Context) error {
 	id := c.Param("id")
 
@@ -105,7 +143,21 @@ func (h *Handler) GetUserByID(c echo.Context) error {
 	return util.OKResponse(c, "User retrieved successfully", user)
 }
 
-// UpdateUser handles PUT /users/:id
+// UpdateUser godoc
+//
+//	@Summary		Update user
+//	@Description	Update user information
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string						true	"User ID"
+//	@Param			body	body		domain.UpdateUserRequest	true	"Updated user information"
+//	@Success		200		{object}	util.Response{data=domain.UserResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Failure		404		{object}	util.Response
+//	@Router			/v1/users/{id} [put]
 func (h *Handler) UpdateUser(c echo.Context) error {
 	id := c.Param("id")
 
@@ -122,7 +174,19 @@ func (h *Handler) UpdateUser(c echo.Context) error {
 	return util.OKResponse(c, "User updated successfully", user)
 }
 
-// DeleteUser handles DELETE /users/:id
+// DeleteUser godoc
+//
+//	@Summary		Delete user
+//	@Description	Delete a user account
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"User ID"
+//	@Success		200	{object}	util.Response
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
+//	@Router			/v1/users/{id} [delete]
 func (h *Handler) DeleteUser(c echo.Context) error {
 	id := c.Param("id")
 
