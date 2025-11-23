@@ -60,6 +60,16 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 		)
 	}
 
+	// Validate role
+	if !req.Role.IsValid() {
+		return nil, util.ErrorResponse(
+			"Invalid role",
+			util.INVALID_INPUT,
+			400,
+			"role must be admin, editor, or viewer",
+		)
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -76,6 +86,7 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 		Username: normalizedUsername,
 		Email:    normalizedEmail,
 		Password: string(hashedPassword),
+		Role:     req.Role,
 	}
 
 	// Save to database
@@ -209,6 +220,19 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 			}
 			existingUser.Username = normalizedUsername
 		}
+	}
+
+	// Check if role is being changed and validate it
+	if req.Role != "" {
+		if !req.Role.IsValid() {
+			return nil, util.ErrorResponse(
+				"Invalid role",
+				util.INVALID_INPUT,
+				400,
+				"role must be admin, editor, or viewer",
+			)
+		}
+		existingUser.Role = req.Role
 	}
 
 	// Update in database

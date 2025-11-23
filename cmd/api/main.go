@@ -34,7 +34,21 @@ func main() {
 
 	// Middleware
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:5173"}, // ⚠️ ต้องระบุ origin ชัดเจน ไม่ใช่ "*"
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+			"ngrok-skip-browser-warning",
+		},
+		AllowCredentials: true,
+		ExposeHeaders: []string{
+			"Set-Cookie",
+		},
+	}))
 
 	// Request ID middleware (adds unique ID to each request)
 	e.Use(customMiddleware.RequestIDMiddleware())

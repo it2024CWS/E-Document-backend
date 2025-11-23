@@ -118,7 +118,7 @@ func (h *Handler) setCookies(c echo.Context, accessToken, refreshToken string) {
 		Name:     "accessToken",
 		Value:    accessToken,
 		Path:     "/",
-		HttpOnly: true,
+		HttpOnly: false,
 		Secure:   false, // Set to true in production with HTTPS
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   3600, // 1 hour

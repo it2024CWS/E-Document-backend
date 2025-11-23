@@ -1,10 +1,44 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+// UserRole represents the role type
+type UserRole string
+
+// Role Enums
+const (
+	RoleAdmin  UserRole = "admin"
+	RoleEditor UserRole = "editor"
+	RoleViewer UserRole = "viewer"
+)
+
+// IsValid checks if the role is valid
+func (r UserRole) IsValid() bool {
+	switch r {
+	case RoleAdmin, RoleEditor, RoleViewer:
+		return true
+	}
+	return false
+}
+
+// String returns the string representation of the role
+func (r UserRole) String() string {
+	return string(r)
+}
+
+// ValidateRole validates if a string is a valid role
+func ValidateRole(role string) (UserRole, error) {
+	r := UserRole(role)
+	if !r.IsValid() {
+		return "", errors.New("invalid role: must be admin, editor, or viewer")
+	}
+	return r, nil
+}
 
 // User represents the user model in the system
 type User struct {
@@ -12,24 +46,24 @@ type User struct {
 	Username  string             `json:"username" bson:"username" validate:"required"`
 	Email     string             `json:"email" bson:"email" validate:"required,email"`
 	Password  string             `json:"password,omitempty" bson:"password" validate:"required,min=6"`
-	RoleID    primitive.ObjectID `json:"role_id,omitempty" bson:"role_id,omitempty"`
+	Role      UserRole           `json:"role" bson:"role" validate:"required,oneof=admin editor viewer"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
 // CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
-	Username string             `json:"username" validate:"required"`
-	Email    string             `json:"email" validate:"required,email"`
-	Password string             `json:"password" validate:"required,min=6"`
-	RoleID   primitive.ObjectID `json:"role_id,omitempty"`
+	Username string   `json:"username" validate:"required"`
+	Email    string   `json:"email" validate:"required,email"`
+	Password string   `json:"password" validate:"required,min=6"`
+	Role     UserRole `json:"role" validate:"required,oneof=admin editor viewer"`
 }
 
 // UpdateUserRequest represents the request body for updating a user
 type UpdateUserRequest struct {
-	Username string             `json:"username,omitempty"`
-	Email    string             `json:"email,omitempty"`
-	RoleID   primitive.ObjectID `json:"role_id,omitempty"`
+	Username string   `json:"username,omitempty"`
+	Email    string   `json:"email,omitempty"`
+	Role     UserRole `json:"role,omitempty" validate:"omitempty,oneof=admin editor viewer"`
 }
 
 
@@ -38,7 +72,7 @@ type UserResponse struct {
 	ID        primitive.ObjectID `json:"id"`
 	Username  string             `json:"username"`
 	Email     string             `json:"email"`
-	Role      *RoleResponse      `json:"role,omitempty"`
+	Role      UserRole           `json:"role"`
 	CreatedAt time.Time          `json:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at"`
 }
@@ -49,7 +83,7 @@ func (u *User) ToResponse() UserResponse {
 		ID:        u.ID,
 		Username:  u.Username,
 		Email:     u.Email,
-		Role:      nil,
+		Role:      u.Role,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
 	}

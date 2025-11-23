@@ -75,7 +75,6 @@ func main() {
 		Username:  cfg.Admin.Username,
 		Email:     cfg.Admin.Email,
 		Password:  string(hashedPassword),
-		RoleID:    adminRole.ID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

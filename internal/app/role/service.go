@@ -133,9 +133,9 @@ func (s *service) GetAllRoles(ctx context.Context, skip int, limit int, search s
 		)
 	}
 
-	var responses []domain.RoleResponse
-	for _, role := range roles {
-		responses = append(responses, role.ToResponse())
+	var responses = make([]domain.RoleResponse, len(roles))
+	for i, role := range roles {
+		responses[i] = role.ToResponse()
 	}
 
 	return responses, total, nil
