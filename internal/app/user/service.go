@@ -15,7 +15,7 @@ import (
 type Service interface {
 	CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error)
 	GetUserByID(ctx context.Context, id string) (*domain.UserResponse, error)
-	GetAllUsers(ctx context.Context, page, limit int, search string) ([]domain.UserResponse, int, error)
+	GetAllUsers(ctx context.Context, page, limit int, search string, currentUserID string) ([]domain.UserResponse, int, error)
 	UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 }
@@ -124,8 +124,8 @@ func (s *service) GetUserByID(ctx context.Context, id string) (*domain.UserRespo
 	return &response, nil
 }
 
-// NOTE GetAllUsers retrieves all users with pagination
-func (s *service) GetAllUsers(ctx context.Context, page, limit int, search string) ([]domain.UserResponse, int, error) {
+// NOTE GetAllUsers retrieves all users with pagination (excluding current user)
+func (s *service) GetAllUsers(ctx context.Context, page, limit int, search string, currentUserID string) ([]domain.UserResponse, int, error) {
 	// Calculate skip
 	skip := (page - 1) * limit
 
@@ -143,10 +143,10 @@ func (s *service) GetAllUsers(ctx context.Context, page, limit int, search strin
 		total, countErr = s.repo.Count(ctx, search)
 	}()
 
-	// Get paginated users in parallel
+	// Get paginated users in parallel (excluding current user)
 	go func() {
 		defer wg.Done()
-		users, findErr = s.repo.FindAll(ctx, skip, limit, search)
+		users, findErr = s.repo.FindAll(ctx, skip, limit, search, currentUserID)
 	}()
 
 	// Wait for both operations to complete

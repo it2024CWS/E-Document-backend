@@ -18,7 +18,7 @@ type Repository interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
-	FindAll(ctx context.Context, skip int, limit int, search string) ([]domain.User, error)
+	FindAll(ctx context.Context, skip int, limit int, search string, currentUserID string) ([]domain.User, error)
 	Count(ctx context.Context, search string) (int, error)
 	Update(ctx context.Context, id string, user *domain.User) error
 	Delete(ctx context.Context, id string) error
@@ -111,8 +111,8 @@ func (r *repository) buildSearchFilter(search string) bson.M {
 	return filter
 }
 
-// NOTE FindAll retrieves all users
-func (r *repository) FindAll(ctx context.Context, skip int, limit int, search string) ([]domain.User, error) {
+// NOTE FindAll retrieves all users excluding the current user
+func (r *repository) FindAll(ctx context.Context, skip int, limit int, search string, currentUserID string) ([]domain.User, error) {
 	opts := options.Find()
 	opts.SetSkip(int64(skip))
 	opts.SetLimit(int64(limit))
@@ -120,6 +120,24 @@ func (r *repository) FindAll(ctx context.Context, skip int, limit int, search st
 
 	// Build filter with search
 	filter := r.buildSearchFilter(search)
+
+	// Exclude current user from results
+	if currentUserID != "" {
+		objectID, err := primitive.ObjectIDFromHex(currentUserID)
+		if err == nil {
+			// If filter already has conditions, combine them with $and
+			if len(filter) > 0 {
+				filter = bson.M{
+					"$and": []bson.M{
+						filter,
+						{"_id": bson.M{"$ne": objectID}},
+					},
+				}
+			} else {
+				filter["_id"] = bson.M{"$ne": objectID}
+			}
+		}
+	}
 
 	cursor, err := r.collection.Find(ctx, filter, opts)
 	if err != nil {

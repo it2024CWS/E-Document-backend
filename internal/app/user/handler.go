@@ -102,7 +102,13 @@ func (h *Handler) GetAllUsers(c echo.Context) error {
 		}
 	}
 
-	users, total, err := h.service.GetAllUsers(c.Request().Context(), pageNum, limitNum, search)
+	// Get current user ID from JWT context
+	currentUserID := ""
+	if userID := c.Get("user_id"); userID != nil {
+		currentUserID = userID.(string)
+	}
+
+	users, total, err := h.service.GetAllUsers(c.Request().Context(), pageNum, limitNum, search, currentUserID)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
