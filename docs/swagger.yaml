@@ -1,42 +1,17 @@
 basePath: /api
 definitions:
-  e-document-backend_internal_domain.CreateUserRequest:
+  domain.AuthResponse:
     properties:
-      department_id:
+      accessToken:
+        description: For mobile apps
         type: string
-      email:
+      refreshToken:
+        description: For mobile apps
         type: string
-      first_name:
-        type: string
-      last_name:
-        type: string
-      password:
-        minLength: 6
-        type: string
-      phone:
-        type: string
-      role:
-        allOf:
-        - $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
-        enum:
-        - Director
-        - DepartmentManager
-        - SectorManager
-        - Employee
-      sector_id:
-        type: string
-      username:
-        type: string
-    required:
-    - email
-    - first_name
-    - last_name
-    - password
-    - phone
-    - role
-    - username
+      user:
+        $ref: '#/definitions/domain.UserResponse'
     type: object
-  e-document-backend_internal_domain.LoginRequest:
+  domain.LoginRequest:
     properties:
       password:
         type: string
@@ -46,35 +21,14 @@ definitions:
     - password
     - usernameOrEmail
     type: object
-  e-document-backend_internal_domain.UpdateUserRequest:
+  domain.RefreshTokenRequest:
     properties:
-      department_id:
+      refreshToken:
         type: string
-      email:
-        type: string
-      first_name:
-        type: string
-      last_name:
-        type: string
-      password:
-        minLength: 6
-        type: string
-      phone:
-        type: string
-      role:
-        allOf:
-        - $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
-        enum:
-        - Director
-        - DepartmentManager
-        - SectorManager
-        - Employee
-      sector_id:
-        type: string
-      username:
-        type: string
+    required:
+    - refreshToken
     type: object
-  e-document-backend_internal_domain.UserResponse:
+  domain.UserResponse:
     properties:
       created_at:
         type: string
@@ -90,8 +44,10 @@ definitions:
         type: string
       phone:
         type: string
+      profile_picture:
+        type: string
       role:
-        $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
+        $ref: '#/definitions/domain.UserRole'
       sector_id:
         type: string
       updated_at:
@@ -99,7 +55,7 @@ definitions:
       username:
         type: string
     type: object
-  e-document-backend_internal_domain.UserRole:
+  domain.UserRole:
     enum:
     - Director
     - DepartmentManager
@@ -111,7 +67,7 @@ definitions:
     - RoleDepartmentManager
     - RoleSectorManager
     - RoleEmployee
-  e-document-backend_internal_util.ErrorCode:
+  util.ErrorCode:
     enum:
     - UNAUTHORIZED
     - INCORRECT_PASSWORD
@@ -149,13 +105,13 @@ definitions:
     - EMAIL_ALREADY_EXISTS
     - ROLE_NOT_FOUND
     - ROLE_ALREADY_EXISTS
-  e-document-backend_internal_util.PaginatedData:
+  util.PaginatedData:
     properties:
       items: {}
       pagination:
-        $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
+        $ref: '#/definitions/util.PaginationInfo'
     type: object
-  e-document-backend_internal_util.PaginationInfo:
+  util.PaginationInfo:
     properties:
       currentPage:
         type: integer
@@ -166,11 +122,11 @@ definitions:
       totalPages:
         type: integer
     type: object
-  e-document-backend_internal_util.Response:
+  util.Response:
     properties:
       data: {}
       error_code:
-        $ref: '#/definitions/e-document-backend_internal_util.ErrorCode'
+        $ref: '#/definitions/util.ErrorCode'
       message:
         type: string
       success:
@@ -193,14 +149,20 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate user with username/email and password
+      description: 'Authenticate user with username/email and password. Always sets
+        httpOnly cookies. Returns tokens in response body ONLY for mobile clients
+        (when X-Client-Type: mobile header is present)'
       parameters:
+      - description: Client type (use 'mobile' for mobile apps)
+        in: header
+        name: X-Client-Type
+        type: string
       - description: Login credentials
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/e-document-backend_internal_domain.LoginRequest'
+          $ref: '#/definitions/domain.LoginRequest'
       produces:
       - application/json
       responses:
@@ -208,19 +170,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.AuthResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       summary: User login
       tags:
       - Auth
@@ -235,7 +197,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       summary: Logout user
       tags:
       - Auth
@@ -251,19 +213,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.UserResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Get user profile
@@ -273,7 +235,20 @@ paths:
     post:
       consumes:
       - application/json
-      description: Get new access and refresh tokens using a valid refresh token
+      description: 'Get new access and refresh tokens using a valid refresh token.
+        Accepts token from body or cookie. Always sets httpOnly cookies. Returns tokens
+        in response body ONLY for mobile clients (when X-Client-Type: mobile header
+        is present)'
+      parameters:
+      - description: Client type (use 'mobile' for mobile apps)
+        in: header
+        name: X-Client-Type
+        type: string
+      - description: Refresh token (optional if using cookie)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/domain.RefreshTokenRequest'
       produces:
       - application/json
       responses:
@@ -281,19 +256,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.AuthResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       summary: Refresh access token
       tags:
       - Auth
@@ -324,19 +299,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
+                  $ref: '#/definitions/util.PaginatedData'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Get all users
@@ -344,15 +319,56 @@ paths:
       - Users
     post:
       consumes:
-      - application/json
-      description: Create a new user account
+      - multipart/form-data
+      description: Create a new user account with optional profile picture
       parameters:
-      - description: User information
-        in: body
-        name: body
+      - description: Username
+        in: formData
+        name: username
         required: true
-        schema:
-          $ref: '#/definitions/e-document-backend_internal_domain.CreateUserRequest'
+        type: string
+      - description: Email
+        in: formData
+        name: email
+        required: true
+        type: string
+      - description: Password (min 6 characters)
+        in: formData
+        name: password
+        required: true
+        type: string
+      - description: First name
+        in: formData
+        name: first_name
+        required: true
+        type: string
+      - description: Last name
+        in: formData
+        name: last_name
+        required: true
+        type: string
+      - description: Phone number (E.164 format)
+        in: formData
+        name: phone
+        required: true
+        type: string
+      - description: Role (Director, DepartmentManager, SectorManager, Employee)
+        in: formData
+        name: role
+        required: true
+        type: string
+      - description: Department ID
+        in: formData
+        name: department_id
+        type: string
+      - description: Sector ID
+        in: formData
+        name: sector_id
+        type: string
+      - description: Profile picture (max 5MB, jpg/png/gif/webp)
+        in: formData
+        name: profile_picture
+        type: file
       produces:
       - application/json
       responses:
@@ -360,19 +376,19 @@ paths:
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.UserResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Create a new user
@@ -395,15 +411,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Delete user
@@ -426,19 +442,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.UserResponse'
               type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Get user by ID
@@ -446,20 +462,54 @@ paths:
       - Users
     put:
       consumes:
-      - application/json
-      description: Update user information
+      - multipart/form-data
+      description: Update user information with optional profile picture
       parameters:
       - description: User ID
         in: path
         name: id
         required: true
         type: string
-      - description: Updated user information
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/e-document-backend_internal_domain.UpdateUserRequest'
+      - description: Username
+        in: formData
+        name: username
+        type: string
+      - description: Email
+        in: formData
+        name: email
+        type: string
+      - description: Password (min 6 characters)
+        in: formData
+        name: password
+        type: string
+      - description: First name
+        in: formData
+        name: first_name
+        type: string
+      - description: Last name
+        in: formData
+        name: last_name
+        type: string
+      - description: Phone number (E.164 format)
+        in: formData
+        name: phone
+        type: string
+      - description: Role (Director, DepartmentManager, SectorManager, Employee)
+        in: formData
+        name: role
+        type: string
+      - description: Department ID
+        in: formData
+        name: department_id
+        type: string
+      - description: Sector ID
+        in: formData
+        name: sector_id
+        type: string
+      - description: Profile picture (max 5MB, jpg/png/gif/webp)
+        in: formData
+        name: profile_picture
+        type: file
       produces:
       - application/json
       responses:
@@ -467,26 +517,150 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - $ref: '#/definitions/util.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
+                  $ref: '#/definitions/domain.UserResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            $ref: '#/definitions/util.Response'
       security:
       - BearerAuth: []
       summary: Update user
+      tags:
+      - Users
+  /v1/users/{id}/profile-picture:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user's profile picture
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete profile picture
+      tags:
+      - Users
+    get:
+      description: Get a temporary presigned URL to access user's profile picture
+        (valid for 1 hour)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns presigned URL
+          schema:
+            additionalProperties:
+              allOf:
+              - type: string
+              - properties:
+                  url:
+                    type: string
+                type: object
+            type: object
+        "307":
+          description: Redirects to presigned URL
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get profile picture URL
+      tags:
+      - Users
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload or update user's profile picture
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Profile picture (max 5MB, jpg/png/gif/webp)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/domain.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/util.Response'
+      security:
+      - BearerAuth: []
+      summary: Upload profile picture
       tags:
       - Users
 securityDefinitions:

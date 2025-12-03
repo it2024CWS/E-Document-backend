@@ -26,7 +26,7 @@ const docTemplate = `{
     "paths": {
         "/v1/auth/login": {
             "post": {
-                "description": "Authenticate user with username/email and password",
+                "description": "Authenticate user with username/email and password. Always sets httpOnly cookies. Returns tokens in response body ONLY for mobile clients (when X-Client-Type: mobile header is present)",
                 "consumes": [
                     "application/json"
                 ],
@@ -39,12 +39,18 @@ const docTemplate = `{
                 "summary": "User login",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "Client type (use 'mobile' for mobile apps)",
+                        "name": "X-Client-Type",
+                        "in": "header"
+                    },
+                    {
                         "description": "Login credentials",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.LoginRequest"
+                            "$ref": "#/definitions/domain.LoginRequest"
                         }
                     }
                 ],
@@ -54,13 +60,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.AuthResponse"
                                         }
                                     }
                                 }
@@ -70,13 +76,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -99,7 +105,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -129,13 +135,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.UserResponse"
                                         }
                                     }
                                 }
@@ -145,13 +151,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -159,7 +165,7 @@ const docTemplate = `{
         },
         "/v1/auth/refresh": {
             "post": {
-                "description": "Get new access and refresh tokens using a valid refresh token",
+                "description": "Get new access and refresh tokens using a valid refresh token. Accepts token from body or cookie. Always sets httpOnly cookies. Returns tokens in response body ONLY for mobile clients (when X-Client-Type: mobile header is present)",
                 "consumes": [
                     "application/json"
                 ],
@@ -170,19 +176,35 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Refresh access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client type (use 'mobile' for mobile apps)",
+                        "name": "X-Client-Type",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Refresh token (optional if using cookie)",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/domain.RefreshTokenRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.AuthResponse"
                                         }
                                     }
                                 }
@@ -192,13 +214,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -250,13 +272,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginatedData"
+                                            "$ref": "#/definitions/util.PaginatedData"
                                         }
                                     }
                                 }
@@ -266,13 +288,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -283,9 +305,9 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new user account",
+                "description": "Create a new user account with optional profile picture",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -296,13 +318,71 @@ const docTemplate = `{
                 "summary": "Create a new user",
                 "parameters": [
                     {
-                        "description": "User information",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.CreateUserRequest"
-                        }
+                        "type": "string",
+                        "description": "Username",
+                        "name": "username",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email",
+                        "name": "email",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password (min 6 characters)",
+                        "name": "password",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "First name",
+                        "name": "first_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Last name",
+                        "name": "last_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Phone number (E.164 format)",
+                        "name": "phone",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role (Director, DepartmentManager, SectorManager, Employee)",
+                        "name": "role",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sector ID",
+                        "name": "sector_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Profile picture (max 5MB, jpg/png/gif/webp)",
+                        "name": "profile_picture",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -311,13 +391,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.UserResponse"
                                         }
                                     }
                                 }
@@ -327,13 +407,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -372,13 +452,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.UserResponse"
                                         }
                                     }
                                 }
@@ -388,13 +468,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -405,9 +485,9 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user information",
+                "description": "Update user information with optional profile picture",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -425,13 +505,64 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Updated user information",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.UpdateUserRequest"
-                        }
+                        "type": "string",
+                        "description": "Username",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password (min 6 characters)",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "First name",
+                        "name": "first_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Last name",
+                        "name": "last_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Phone number (E.164 format)",
+                        "name": "phone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Role (Director, DepartmentManager, SectorManager, Employee)",
+                        "name": "role",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Department ID",
+                        "name": "department_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sector ID",
+                        "name": "sector_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Profile picture (max 5MB, jpg/png/gif/webp)",
+                        "name": "profile_picture",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -440,13 +571,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                    "$ref": "#/definitions/util.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/e-document-backend_internal_domain.UserResponse"
+                                            "$ref": "#/definitions/domain.UserResponse"
                                         }
                                     }
                                 }
@@ -456,19 +587,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -503,19 +634,223 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{id}/profile-picture": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a temporary presigned URL to access user's profile picture (valid for 1 hour)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get profile picture URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns presigned URL",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "allOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "url": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "307": {
+                        "description": "Redirects to presigned URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload or update user's profile picture",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Upload profile picture",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Profile picture (max 5MB, jpg/png/gif/webp)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/domain.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete user's profile picture",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete profile picture",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/domain.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
                         }
                     }
                 }
@@ -523,59 +858,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "e-document-backend_internal_domain.CreateUserRequest": {
+        "domain.AuthResponse": {
             "type": "object",
-            "required": [
-                "email",
-                "first_name",
-                "last_name",
-                "password",
-                "phone",
-                "role",
-                "username"
-            ],
             "properties": {
-                "department_id": {
+                "accessToken": {
+                    "description": "For mobile apps",
                     "type": "string"
                 },
-                "email": {
+                "refreshToken": {
+                    "description": "For mobile apps",
                     "type": "string"
                 },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
-                    "enum": [
-                        "Director",
-                        "DepartmentManager",
-                        "SectorManager",
-                        "Employee"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.UserRole"
-                        }
-                    ]
-                },
-                "sector_id": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
+                "user": {
+                    "$ref": "#/definitions/domain.UserResponse"
                 }
             }
         },
-        "e-document-backend_internal_domain.LoginRequest": {
+        "domain.LoginRequest": {
             "type": "object",
             "required": [
                 "password",
@@ -590,50 +889,18 @@ const docTemplate = `{
                 }
             }
         },
-        "e-document-backend_internal_domain.UpdateUserRequest": {
+        "domain.RefreshTokenRequest": {
             "type": "object",
+            "required": [
+                "refreshToken"
+            ],
             "properties": {
-                "department_id": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
-                    "enum": [
-                        "Director",
-                        "DepartmentManager",
-                        "SectorManager",
-                        "Employee"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.UserRole"
-                        }
-                    ]
-                },
-                "sector_id": {
-                    "type": "string"
-                },
-                "username": {
+                "refreshToken": {
                     "type": "string"
                 }
             }
         },
-        "e-document-backend_internal_domain.UserResponse": {
+        "domain.UserResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -657,8 +924,11 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "profile_picture": {
+                    "type": "string"
+                },
                 "role": {
-                    "$ref": "#/definitions/e-document-backend_internal_domain.UserRole"
+                    "$ref": "#/definitions/domain.UserRole"
                 },
                 "sector_id": {
                     "type": "string"
@@ -671,7 +941,7 @@ const docTemplate = `{
                 }
             }
         },
-        "e-document-backend_internal_domain.UserRole": {
+        "domain.UserRole": {
             "type": "string",
             "enum": [
                 "Director",
@@ -686,7 +956,7 @@ const docTemplate = `{
                 "RoleEmployee"
             ]
         },
-        "e-document-backend_internal_util.ErrorCode": {
+        "util.ErrorCode": {
             "type": "string",
             "enum": [
                 "UNAUTHORIZED",
@@ -727,16 +997,16 @@ const docTemplate = `{
                 "ROLE_ALREADY_EXISTS"
             ]
         },
-        "e-document-backend_internal_util.PaginatedData": {
+        "util.PaginatedData": {
             "type": "object",
             "properties": {
                 "items": {},
                 "pagination": {
-                    "$ref": "#/definitions/e-document-backend_internal_util.PaginationInfo"
+                    "$ref": "#/definitions/util.PaginationInfo"
                 }
             }
         },
-        "e-document-backend_internal_util.PaginationInfo": {
+        "util.PaginationInfo": {
             "type": "object",
             "properties": {
                 "currentPage": {
@@ -753,12 +1023,12 @@ const docTemplate = `{
                 }
             }
         },
-        "e-document-backend_internal_util.Response": {
+        "util.Response": {
             "type": "object",
             "properties": {
                 "data": {},
                 "error_code": {
-                    "$ref": "#/definitions/e-document-backend_internal_util.ErrorCode"
+                    "$ref": "#/definitions/util.ErrorCode"
                 },
                 "message": {
                     "type": "string"

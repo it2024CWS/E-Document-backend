@@ -7,6 +7,7 @@ import (
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
 	customMiddleware "e-document-backend/internal/middleware"
+	"e-document-backend/internal/pkg/storage"
 	"e-document-backend/internal/platform/mongodb"
 	"net/http"
 	"os"
@@ -96,10 +97,18 @@ func main() {
 	}
 	defer mongoClient.Disconnect()
 
+	// Initialize MinIO client for file storage
+	minioConfig := storage.LoadConfigFromEnv()
+	minioClient, err := storage.NewMinIOClient(minioConfig)
+	if err != nil {
+		logger.FatalWithErr("Failed to initialize MinIO client", err)
+	}
+	logger.Info("MinIO client initialized successfully")
+
 	// Initialize user module (Handler-Service-Repository)
 	userRepo := user.NewRepository(mongoClient.Database)
 	userService := user.NewService(userRepo)
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService, minioClient)
 
 	// Initialize auth module (Handler-Service)
 	authService := auth.NewService(userRepo, cfg)

@@ -63,9 +63,9 @@ func (s *service) Login(ctx context.Context, req domain.LoginRequest) (*AuthResu
 	if err != nil {
 		return nil, util.ErrorResponse(
 			"Invalid credentials",
-			util.INVALID_CREDENTIALS,
+			util.USER_NOT_FOUND,
 			401,
-			"username/email or password is incorrect",
+			"username or email not found",
 		)
 	}
 
@@ -75,7 +75,7 @@ func (s *service) Login(ctx context.Context, req domain.LoginRequest) (*AuthResu
 			"Invalid credentials",
 			util.INCORRECT_PASSWORD,
 			401,
-			"username/email or password is incorrect",
+			"incorrect password",
 		)
 	}
 

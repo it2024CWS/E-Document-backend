@@ -7,8 +7,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	dbTimeout = 5 * time.Second // Database operation timeout
 )
 
 // Service defines the interface for user business logic
@@ -17,6 +22,7 @@ type Service interface {
 	GetUserByID(ctx context.Context, id string) (*domain.UserResponse, error)
 	GetAllUsers(ctx context.Context, page, limit int, search string, currentUserID string) ([]domain.UserResponse, int, error)
 	UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error)
+	UpdateProfilePicture(ctx context.Context, id string, profilePictureURL string) (*domain.UserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
 }
 
@@ -34,51 +40,35 @@ func NewService(repo Repository) Service {
 
 // NOTE CreateUser creates a new user
 func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.UserResponse, error) {
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	// Normalize email and username to lowercase for consistent checking
 	normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 	normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
 
 	// Check if user with email already exists
-	existingEmail, _ := s.repo.FindByEmail(ctx, normalizedEmail)
+	existingEmail, _ := s.repo.FindByEmail(dbCtx, normalizedEmail)
 	if existingEmail != nil {
-		return nil, util.ErrorResponse(
-			"Email already exists",
-			util.EMAIL_ALREADY_EXISTS,
-			400,
-			fmt.Sprintf("user with email %s already exists", normalizedEmail),
-		)
+		return nil, util.NewAlreadyExistsError("User", "email", normalizedEmail)
 	}
 
 	// Check if user with username already exists
-	existingUsername, _ := s.repo.FindByUsername(ctx, normalizedUsername)
+	existingUsername, _ := s.repo.FindByUsername(dbCtx, normalizedUsername)
 	if existingUsername != nil {
-		return nil, util.ErrorResponse(
-			"Username already exists",
-			util.USER_ALREADY_EXISTS,
-			400,
-			fmt.Sprintf("user with username %s already exists", normalizedUsername),
-		)
+		return nil, util.NewAlreadyExistsError("User", "username", normalizedUsername)
 	}
 
 	// Validate role
 	if !req.Role.IsValid() {
-		return nil, util.ErrorResponse(
-			"Invalid role",
-			util.INVALID_INPUT,
-			400,
-			"role must be Director, DepartmentManager, SectorManager, or Employee",
-		)
+		return nil, util.NewInvalidInputError("Role", "must be Director, DepartmentManager, SectorManager, or Employee")
 	}
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, util.ErrorResponse(
-			"Failed to hash password",
-			util.INTERNAL_SERVER_ERROR,
-			500,
-			err.Error(),
-		)
+		return nil, util.NewInternalError(fmt.Sprintf("failed to hash password: %v", err))
 	}
 
 	// Create user object
@@ -95,13 +85,8 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 	}
 
 	// Save to database
-	if err := s.repo.Create(ctx, user); err != nil {
-		return nil, util.ErrorResponse(
-			"Failed to create user",
-			util.DATABASE_ERROR,
-			500,
-			err.Error(),
-		)
+	if err := s.repo.Create(dbCtx, user); err != nil {
+		return nil, util.NewDatabaseError("create user", err)
 	}
 
 	response := user.ToResponse()
@@ -110,14 +95,13 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 
 // NOTE GetUserByID retrieves a user by ID
 func (s *service) GetUserByID(ctx context.Context, id string) (*domain.UserResponse, error) {
-	user, err := s.repo.FindByID(ctx, id)
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	user, err := s.repo.FindByID(dbCtx, id)
 	if err != nil {
-		return nil, util.ErrorResponse(
-			"User not found",
-			util.USER_NOT_FOUND,
-			404,
-			fmt.Sprintf("user with id %s not found", id),
-		)
+		return nil, util.NewNotFoundError("User", id)
 	}
 
 	response := user.ToResponse()
@@ -126,6 +110,10 @@ func (s *service) GetUserByID(ctx context.Context, id string) (*domain.UserRespo
 
 // NOTE GetAllUsers retrieves all users with pagination (excluding current user)
 func (s *service) GetAllUsers(ctx context.Context, page, limit int, search string, currentUserID string) ([]domain.UserResponse, int, error) {
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	// Calculate skip
 	skip := (page - 1) * limit
 
@@ -137,16 +125,16 @@ func (s *service) GetAllUsers(ctx context.Context, page, limit int, search strin
 
 	wg.Add(2)
 
-	// Get total count in parallel
+	// Get total count in parallel (excluding current user)
 	go func() {
 		defer wg.Done()
-		total, countErr = s.repo.Count(ctx, search)
+		total, countErr = s.repo.Count(dbCtx, search, currentUserID)
 	}()
 
 	// Get paginated users in parallel (excluding current user)
 	go func() {
 		defer wg.Done()
-		users, findErr = s.repo.FindAll(ctx, skip, limit, search, currentUserID)
+		users, findErr = s.repo.FindAll(dbCtx, skip, limit, search, currentUserID)
 	}()
 
 	// Wait for both operations to complete
@@ -180,10 +168,14 @@ func (s *service) GetAllUsers(ctx context.Context, page, limit int, search strin
 	return responses, total, nil
 }
 
-// UpdateUser updates a user by ID
+// NOTE UpdateUser updates a user by ID
 func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error) {
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	// Check if user exists
-	existingUser, err := s.repo.FindByID(ctx, id)
+	existingUser, err := s.repo.FindByID(dbCtx, id)
 	if err != nil {
 		return nil, util.ErrorResponse(
 			"User not found",
@@ -197,7 +189,7 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 	if req.Email != "" {
 		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 		if normalizedEmail != existingUser.Email {
-			emailUser, _ := s.repo.FindByEmail(ctx, normalizedEmail)
+			emailUser, _ := s.repo.FindByEmail(dbCtx, normalizedEmail)
 			if emailUser != nil {
 				return nil, util.ErrorResponse(
 					"Email already exists",
@@ -214,7 +206,7 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 	if req.Username != "" {
 		normalizedUsername := strings.ToLower(strings.TrimSpace(req.Username))
 		if normalizedUsername != existingUser.Username {
-			usernameUser, _ := s.repo.FindByUsername(ctx, normalizedUsername)
+			usernameUser, _ := s.repo.FindByUsername(dbCtx, normalizedUsername)
 			if usernameUser != nil {
 				return nil, util.ErrorResponse(
 					"Username already exists",
@@ -270,7 +262,7 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 	}
 
 	// Update in database
-	if err := s.repo.Update(ctx, id, existingUser); err != nil {
+	if err := s.repo.Update(dbCtx, id, existingUser); err != nil {
 		return nil, util.ErrorResponse(
 			"Failed to update user",
 			util.DATABASE_ERROR,
@@ -280,7 +272,52 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 	}
 
 	// Fetch updated user
-	updatedUser, err := s.repo.FindByID(ctx, id)
+	updatedUser, err := s.repo.FindByID(dbCtx, id)
+	if err != nil {
+		return nil, util.ErrorResponse(
+			"Failed to fetch updated user",
+			util.DATABASE_ERROR,
+			500,
+			err.Error(),
+		)
+	}
+
+	response := updatedUser.ToResponse()
+	return &response, nil
+}
+
+// NOTE UpdateProfilePicture updates a user's profile picture
+func (s *service) UpdateProfilePicture(ctx context.Context, id string, profilePictureURL string) (*domain.UserResponse, error) {
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	// Check if user exists
+	existingUser, err := s.repo.FindByID(dbCtx, id)
+	if err != nil {
+		return nil, util.ErrorResponse(
+			"User not found",
+			util.USER_NOT_FOUND,
+			404,
+			fmt.Sprintf("user with id %s not found", id),
+		)
+	}
+
+	// Update profile picture
+	existingUser.ProfilePicture = profilePictureURL
+	fmt.Println(existingUser)
+	// Update in database
+	if err := s.repo.Update(dbCtx, id, existingUser); err != nil {
+		return nil, util.ErrorResponse(
+			"Failed to update profile picture",
+			util.DATABASE_ERROR,
+			500,
+			err.Error(),
+		)
+	}
+
+	// Fetch updated user
+	updatedUser, err := s.repo.FindByID(dbCtx, id)
 	if err != nil {
 		return nil, util.ErrorResponse(
 			"Failed to fetch updated user",
@@ -296,8 +333,12 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 
 // DeleteUser deletes a user by ID
 func (s *service) DeleteUser(ctx context.Context, id string) error {
+	// Create context with timeout for database operations
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
 	// Check if user exists first
-	_, err := s.repo.FindByID(ctx, id)
+	_, err := s.repo.FindByID(dbCtx, id)
 	if err != nil {
 		return util.ErrorResponse(
 			"User not found",
@@ -307,7 +348,7 @@ func (s *service) DeleteUser(ctx context.Context, id string) error {
 		)
 	}
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	if err := s.repo.Delete(dbCtx, id); err != nil {
 		return util.ErrorResponse(
 			"Failed to delete user",
 			util.DATABASE_ERROR,

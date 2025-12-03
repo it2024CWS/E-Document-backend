@@ -19,7 +19,7 @@ type Repository interface {
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByUsername(ctx context.Context, username string) (*domain.User, error)
 	FindAll(ctx context.Context, skip int, limit int, search string, currentUserID string) ([]domain.User, error)
-	Count(ctx context.Context, search string) (int, error)
+	Count(ctx context.Context, search string, currentUserID string) (int, error)
 	Update(ctx context.Context, id string, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 }
@@ -153,10 +153,28 @@ func (r *repository) FindAll(ctx context.Context, skip int, limit int, search st
 	return users, nil
 }
 
-// NOTE Count returns the total number of users
-func (r *repository) Count(ctx context.Context, search string) (int, error) {
+// NOTE Count returns the total number of users (excluding current user)
+func (r *repository) Count(ctx context.Context, search string, currentUserID string) (int, error) {
 	// Build filter with search
 	filter := r.buildSearchFilter(search)
+
+	// Exclude current user from count
+	if currentUserID != "" {
+		objectID, err := primitive.ObjectIDFromHex(currentUserID)
+		if err == nil {
+			// If filter already has conditions, combine them with $and
+			if len(filter) > 0 {
+				filter = bson.M{
+					"$and": []bson.M{
+						filter,
+						{"_id": bson.M{"$ne": objectID}},
+					},
+				}
+			} else {
+				filter["_id"] = bson.M{"$ne": objectID}
+			}
+		}
+	}
 
 	count, err := r.collection.CountDocuments(ctx, filter)
 	if err != nil {
@@ -177,16 +195,17 @@ func (r *repository) Update(ctx context.Context, id string, user *domain.User) e
 
 	update := bson.M{
 		"$set": bson.M{
-			"username":      user.Username,
-			"email":         user.Email,
-			"role":          user.Role,
-			"phone":         user.Phone,
-			"first_name":    user.FirstName,
-			"last_name":     user.LastName,
-			"password":      user.Password,
-			"department_id": user.DepartmentID,
-			"sector_id":     user.SectorID,
-			"updated_at":    user.UpdatedAt,
+			"username":        user.Username,
+			"email":           user.Email,
+			"role":            user.Role,
+			"phone":           user.Phone,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"password":        user.Password,
+			"department_id":   user.DepartmentID,
+			"sector_id":       user.SectorID,
+			"profile_picture": user.ProfilePicture,
+			"updated_at":      user.UpdatedAt,
 		},
 	}
 

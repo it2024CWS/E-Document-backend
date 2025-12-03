@@ -1,0 +1,45 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: edocument-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - edocument-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: edocument-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password123
+    ports:
+      - "9000:9000"   # MinIO API
+      - "9001:9001"   # MinIO Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - edocument-network
+
+networks:
+  edocument-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  minio_data:
+    driver: local
