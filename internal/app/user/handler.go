@@ -57,9 +57,9 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 //	@Param			username		formData	string	true	"Username"
 //	@Param			email			formData	string	true	"Email"
 //	@Param			password		formData	string	true	"Password (min 6 characters)"
-//	@Param			first_name		formData	string	true	"First name"
-//	@Param			last_name		formData	string	true	"Last name"
-//	@Param			phone			formData	string	true	"Phone number (E.164 format)"
+//	@Param			first_name		formData	string	false	"First name"
+//	@Param			last_name		formData	string	false	"Last name"
+//	@Param			phone			formData	string	false	"Phone number (E.164 format)"
 //	@Param			role			formData	string	true	"Role (Director, DepartmentManager, SectorManager, Employee)"
 //	@Param			department_id	formData	string	false	"Department ID"
 //	@Param			sector_id		formData	string	false	"Sector ID"
@@ -115,7 +115,7 @@ func (h *Handler) CreateUser(c echo.Context) error {
 
 	// Update profile picture if uploaded
 	if profilePictureURL != "" {
-		updatedUser, err := h.service.UpdateProfilePicture(c.Request().Context(), user.ID.Hex(), profilePictureURL)
+		updatedUser, err := h.service.UpdateProfilePicture(c.Request().Context(), user.ID.String(), profilePictureURL)
 		if err != nil {
 			// If update fails, delete the uploaded file
 			_ = h.storageClient.DeleteFile(c.Request().Context(), profilePictureURL)

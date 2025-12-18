@@ -59,19 +59,29 @@ seed:
 # Run all pending migrations
 migrate-up:
 	@echo "Running migrations..."
-	go run cmd/migrate/main.go -up
+	go run cmd/migrate/main.go up
 
 # Rollback the last migration
 migrate-down:
 	@echo "Rolling back migration..."
-	go run cmd/migrate/main.go -down
+	go run cmd/migrate/main.go down
 
 # Show migration status
 migrate-status:
 	@echo "Migration status:"
-	go run cmd/migrate/main.go -status
+	go run cmd/migrate/main.go version
 
 # swagger :generate swagger docs
 swagger:
 	@echo "Generating Swagger documentation..."
 	swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
+
+# run docker compose of postgres
+postgres:
+	@echo "Starting PostgreSQL with Docker Compose..."
+	docker-compose -f docker-compose.postgres.yml up -d
+
+# run docker compose of minio
+minio:
+	@echo "Starting MinIO with Docker Compose..."
+	docker-compose -f docker-compose.minio.yml up -d

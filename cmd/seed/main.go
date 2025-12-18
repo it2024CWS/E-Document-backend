@@ -4,12 +4,10 @@ import (
 	"context"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
-	"e-document-backend/internal/domain"
 	"e-document-backend/internal/logger"
-	"e-document-backend/internal/platform/mongodb"
+	"e-document-backend/internal/pkg/seed"
+	"e-document-backend/internal/platform/postgres"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -25,50 +23,24 @@ func main() {
 
 	logger.Info("Starting database seeding...")
 
-	// Connect to MongoDB
-	mongoClient, err := mongodb.NewClient(cfg.Database.MongoURI, cfg.Database.DBName)
-	if err != nil {
-		logger.FatalWithErr("Failed to connect to MongoDB", err)
-	}
-	defer mongoClient.Disconnect()
-
-	// Initialize repositories
-	userRepo := user.NewRepository(mongoClient.Database)
-
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	// Check if admin user already exists
-	existingAdmin, _ := userRepo.FindByEmail(ctx, cfg.Admin.Email)
-	if existingAdmin != nil {
-		logger.Info("Admin user already exists. Skipping seed.")
-		return
-	}
 
-	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(cfg.Admin.Password), bcrypt.DefaultCost)
+	// Connect to PostgreSQL
+	pgClient, err := postgres.NewClient(ctx, cfg.Database.PostgresDSN)
 	if err != nil {
-		logger.FatalWithErr("Failed to hash password", err)
+		logger.FatalWithErr("Failed to connect to PostgreSQL", err)
+	}
+	defer pgClient.Close()
+
+	// Initialize repositories
+	userRepo := user.NewPostgresRepository(pgClient.Pool)
+
+	// Seed admin user using shared seeder
+	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
+		logger.FatalWithErr("Failed to seed admin user", err)
 	}
 
-	// Create admin user with admin role
-	adminUser := &domain.User{
-		Username:  cfg.Admin.Username,
-		Email:     cfg.Admin.Email,
-		Password:  string(hashedPassword),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// Save to database
-	if err := userRepo.Create(ctx, adminUser); err != nil {
-		logger.FatalWithErr("Failed to create admin user", err)
-	}
-
-	logger.Info("✓ Admin user created successfully!")
-	logger.Infof("  Username: %s", adminUser.Username)
-	logger.Infof("  Email: %s", adminUser.Email)
-	logger.Infof("  Password: %s", cfg.Admin.Password)
-	logger.Infof("  Role: Admin")
-	logger.Infof("  ID: %s", adminUser.ID.Hex())
+	logger.Info("✓ Admin user seeded successfully!")
 }

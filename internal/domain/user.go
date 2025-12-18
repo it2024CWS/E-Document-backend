@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/google/uuid"
 )
 
 // UserRole represents the role type
@@ -43,19 +43,19 @@ func ValidateRole(role string) (UserRole, error) {
 
 // User represents the user model in the system
 type User struct {
-	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	Username       string             `json:"username" bson:"username" validate:"required"`
-	Email          string             `json:"email" bson:"email" validate:"required,email"`
-	Phone          string             `json:"phone" bson:"phone" validate:"required,e164"`
-	FirstName      string             `json:"first_name" bson:"first_name" validate:"required"`
-	LastName       string             `json:"last_name" bson:"last_name" validate:"required"`
-	Password       string             `json:"password,omitempty" bson:"password" validate:"required,min=6"`
-	Role           UserRole           `json:"role" bson:"role" validate:"required,oneof=Director DepartmentManager SectorManager Employee"`
-	DepartmentID   string             `json:"department_id" bson:"department_id"`
-	SectorID       string             `json:"sector_id" bson:"sector_id"`
-	ProfilePicture string             `json:"profile_picture,omitempty" bson:"profile_picture"`
-	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at" bson:"updated_at"`
+	ID             uuid.UUID `json:"id" db:"id"`
+	Username       string    `json:"username" db:"username" validate:"required"`
+	Email          string    `json:"email" db:"email" validate:"required,email"`
+	Phone          string    `json:"phone" db:"phone" validate:"required,e164"`
+	FirstName      string    `json:"first_name" db:"first_name" validate:"required"`
+	LastName       string    `json:"last_name" db:"last_name" validate:"required"`
+	Password       string    `json:"password,omitempty" db:"password" validate:"required,min=6"`
+	Role           UserRole  `json:"role" db:"role" validate:"required,oneof=Director DepartmentManager SectorManager Employee"`
+	DepartmentID   string    `json:"department_id" db:"department_id"`
+	SectorID       string    `json:"sector_id" db:"sector_id"`
+	ProfilePicture string    `json:"profile_picture,omitempty" db:"profile_picture"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // CreateUserRequest represents the request body for creating a user
@@ -65,8 +65,8 @@ type CreateUserRequest struct {
 	Password     string   `json:"password" validate:"required,min=6"`
 	Role         UserRole `json:"role" validate:"required,oneof=Director DepartmentManager SectorManager Employee"`
 	Phone        string   `json:"phone"`
-	FirstName    string   `json:"first_name" validate:"required"`
-	LastName     string   `json:"last_name" validate:"required"`
+	FirstName    string   `json:"first_name"`
+	LastName     string   `json:"last_name"`
 	DepartmentID string   `json:"department_id"`
 	SectorID     string   `json:"sector_id"`
 }
@@ -86,18 +86,18 @@ type UpdateUserRequest struct {
 
 // UserResponse represents the user response (without password)
 type UserResponse struct {
-	ID             primitive.ObjectID `json:"id"`
-	Username       string             `json:"username"`
-	Email          string             `json:"email"`
-	Role           UserRole           `json:"role"`
-	Phone          string             `json:"phone"`
-	FirstName      string             `json:"first_name"`
-	LastName       string             `json:"last_name"`
-	ProfilePicture string             `json:"profile_picture,omitempty"`
-	DepartmentID   string             `json:"department_id"`
-	SectorID       string             `json:"sector_id"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+	ID             uuid.UUID `json:"id"`
+	Username       string    `json:"username"`
+	Email          string    `json:"email"`
+	Role           UserRole  `json:"role"`
+	Phone          string    `json:"phone"`
+	FirstName      string    `json:"first_name"`
+	LastName       string    `json:"last_name"`
+	ProfilePicture string    `json:"profile_picture,omitempty"`
+	DepartmentID   string    `json:"department_id"`
+	SectorID       string    `json:"sector_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // ToResponse converts User to UserResponse (excluding password)

@@ -23,8 +23,7 @@ type ServerConfig struct {
 
 // DatabaseConfig holds database configuration
 type DatabaseConfig struct {
-	MongoURI string
-	DBName   string
+	PostgresDSN string // PostgreSQL connection string
 }
 
 // AdminConfig holds admin user configuration for seeding
@@ -58,21 +57,20 @@ func Load() *Config {
 			Port: getEnv("PORT", "8080"),
 		},
 		Database: DatabaseConfig{
-			MongoURI: getEnv("MONGO_URI", "mongodb://localhost:27017"),
-			DBName:   getEnv("DB_NAME", "e_document_db"),
+			PostgresDSN: getEnv("POSTGRES_DSN", ""),
 		},
 		Admin: AdminConfig{
-			Username: getEnv("ADMIN_USERNAME", "admin"),
-			Email:    getEnv("ADMIN_EMAIL", "admin@example.com"),
-			Password: getEnv("ADMIN_PASSWORD", "password"),
+			Username: getEnv("ADMIN_USERNAME", ""),
+			Email:    getEnv("ADMIN_EMAIL", ""),
+			Password: getEnv("ADMIN_PASSWORD", ""),
 		},
 		Logger: LoggerConfig{
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Pretty: getEnv("LOG_PRETTY", "true") == "true",
 		},
 		JWT: JWTConfig{
-			AccessTokenSecret:  getEnv("JWT_ACCESS_SECRET", "your-access-secret-key"),
-			RefreshTokenSecret: getEnv("JWT_REFRESH_SECRET", "your-refresh-secret-key"),
+			AccessTokenSecret:  getEnv("JWT_ACCESS_SECRET", ""),
+			RefreshTokenSecret: getEnv("JWT_REFRESH_SECRET", ""),
 			AccessTokenExpiry:  getEnvAsInt64("JWT_ACCESS_EXPIRY", 3600),    // 1 hour
 			RefreshTokenExpiry: getEnvAsInt64("JWT_REFRESH_EXPIRY", 604800), // 7 days
 		},

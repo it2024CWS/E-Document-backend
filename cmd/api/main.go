@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"e-document-backend/internal/app/auth"
+	"e-document-backend/internal/app/file"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
 	customMiddleware "e-document-backend/internal/middleware"
+	"e-document-backend/internal/pkg/seed"
 	"e-document-backend/internal/pkg/storage"
-	"e-document-backend/internal/platform/mongodb"
+	"e-document-backend/internal/platform/postgres"
 	"net/http"
 	"os"
 	"os/signal"
@@ -90,12 +92,14 @@ func main() {
 		BurstSize:         50,
 	}))
 
-	// Connect to MongoDB
-	mongoClient, err := mongodb.NewClient(cfg.Database.MongoURI, cfg.Database.DBName)
+	// Connect to PostgreSQL
+	ctx := context.Background()
+	println("Connecting to PostgreSQL...", cfg.Database.PostgresDSN)
+	pgClient, err := postgres.NewClient(ctx, cfg.Database.PostgresDSN)
 	if err != nil {
-		logger.FatalWithErr("Failed to connect to MongoDB", err)
+		logger.FatalWithErr("Failed to connect to PostgreSQL", err)
 	}
-	defer mongoClient.Disconnect()
+	defer pgClient.Close()
 
 	// Initialize MinIO client for file storage
 	minioConfig := storage.LoadConfigFromEnv()
@@ -106,9 +110,18 @@ func main() {
 	logger.Info("MinIO client initialized successfully")
 
 	// Initialize user module (Handler-Service-Repository)
-	userRepo := user.NewRepository(mongoClient.Database)
+	userRepo := user.NewPostgresRepository(pgClient.Pool)
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService, minioClient)
+
+	// Initialize file module (Service-Handler) for generating presigned URLs for files in MinIO
+	fileService := file.NewService(minioClient)
+	fileHandler := file.NewHandler(fileService)
+
+	// Seed admin user if it doesn't exist
+	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
+		logger.Warnf("Failed to seed admin user: %v", err)
+	}
 
 	// Initialize auth module (Handler-Service)
 	authService := auth.NewService(userRepo, cfg)
@@ -134,6 +147,8 @@ func main() {
 
 	// Register user routes
 	userHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register file routes
+	fileHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register auth routes (with middleware for protected routes)
 	authHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 

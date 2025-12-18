@@ -1,6 +1,7 @@
 package user
 
 import (
+	"e-document-backend/internal/util"
 	"net/http"
 	"time"
 
@@ -27,29 +28,29 @@ func (h *Handler) GetProfilePicture(c echo.Context) error {
 	// Get user
 	user, err := h.service.GetUserByID(c.Request().Context(), id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{
-			"success": false,
-			"message": "User not found",
-			"error":   err.Error(),
-		})
+		// Reuse standard error handling (will return util.Response)
+		return util.HandleError(c, err)
 	}
 
 	// Check if user has profile picture
 	if user.ProfilePicture == "" {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{
-			"success": false,
-			"message": "User does not have a profile picture",
-		})
+		return util.HandleError(c, util.ErrorResponse(
+			"User does not have a profile picture",
+			util.INVALID_INPUT,
+			http.StatusBadRequest,
+			"user does not have a profile picture",
+		))
 	}
 
 	// Generate presigned URL (valid for 1 hour)
 	presignedURL, err := h.storageClient.GetPresignedURL(c.Request().Context(), user.ProfilePicture, 1*time.Hour)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
-			"success": false,
-			"message": "Failed to generate presigned URL",
-			"error":   err.Error(),
-		})
+		return util.HandleError(c, util.ErrorResponse(
+			"Failed to generate presigned URL",
+			util.INTERNAL_SERVER_ERROR,
+			http.StatusInternalServerError,
+			err.Error(),
+		))
 	}
 
 	// Check if client wants redirect or JSON

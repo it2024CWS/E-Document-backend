@@ -1,74 +1,96 @@
 package main
 
 import (
-	"context"
-	"e-document-backend/internal/config"
-	"e-document-backend/internal/migration"
-	"e-document-backend/internal/platform/mongodb"
-	"e-document-backend/migrations"
-	"flag"
+	"fmt"
 	"log"
 	"os"
-	"time"
+
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Define command flags
-	upCmd := flag.Bool("up", false, "Run all pending migrations")
-	downCmd := flag.Bool("down", false, "Rollback the last migration")
-	statusCmd := flag.Bool("status", false, "Show migration status")
+	// Load .env file
+	_ = godotenv.Load()
 
-	flag.Parse()
-
-	// Validate command
-	if !*upCmd && !*downCmd && !*statusCmd {
-		log.Println("Usage:")
-		log.Println("  go run cmd/migrate/main.go -up       # Run all pending migrations")
-		log.Println("  go run cmd/migrate/main.go -down     # Rollback last migration")
-		log.Println("  go run cmd/migrate/main.go -status   # Show migration status")
-		log.Println("")
-		log.Println("Or use make commands:")
-		log.Println("  make migrate-up")
-		log.Println("  make migrate-down")
-		log.Println("  make migrate-status")
+	// Get database DSN from environment
+	dsn := os.Getenv("POSTGRES_DSN")
+	if dsn == "" {
+		log.Fatal("POSTGRES_DSN is not set")
 		os.Exit(1)
 	}
 
-	// Load configuration
-	cfg := config.Load()
-
-	// Connect to MongoDB
-	mongoClient, err := mongodb.NewClient(cfg.Database.MongoURI, cfg.Database.DBName)
+	// Create migration instance
+	m, err := migrate.New(
+		"file://migrations",
+		dsn,
+	)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		log.Fatal("Failed to create migration instance:", err)
 	}
-	defer mongoClient.Disconnect()
 
-	// Create migration runner
-	runner := migration.NewRunner(mongoClient.Database)
-
-	// Register all migrations
-	migrations.RegisterMigrations(runner)
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Execute command
-	switch {
-	case *upCmd:
-		if err := runner.Up(ctx); err != nil {
-			log.Fatalf("Migration up failed: %v", err)
-		}
-
-	case *downCmd:
-		if err := runner.Down(ctx); err != nil {
-			log.Fatalf("Migration down failed: %v", err)
-		}
-
-	case *statusCmd:
-		if err := runner.Status(ctx); err != nil {
-			log.Fatalf("Failed to get migration status: %v", err)
-		}
+	// Get command from arguments
+	if len(os.Args) < 2 {
+		printUsage()
+		os.Exit(1)
 	}
+
+	command := os.Args[1]
+
+	switch command {
+	case "up":
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			log.Fatal("Migration up failed:", err)
+		}
+		fmt.Println("✅ Migrations applied successfully!")
+
+	case "down":
+		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+			log.Fatal("Migration down failed:", err)
+		}
+		fmt.Println("✅ Migrations rolled back successfully!")
+
+	case "force":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: migrate force <version>")
+			os.Exit(1)
+		}
+		version := os.Args[2]
+		var v int
+		_, err := fmt.Sscanf(version, "%d", &v)
+		if err != nil {
+			log.Fatal("Invalid version number:", err)
+		}
+		if err := m.Force(v); err != nil {
+			log.Fatal("Force migration failed:", err)
+		}
+		fmt.Printf("✅ Forced migration to version %d\n", v)
+
+	case "version":
+		version, dirty, err := m.Version()
+		if err != nil {
+			log.Fatal("Failed to get version:", err)
+		}
+		if dirty {
+			fmt.Printf("Current version: %d (dirty)\n", version)
+		} else {
+			fmt.Printf("Current version: %d\n", version)
+		}
+
+	default:
+		printUsage()
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Println("Database Migration Tool")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  migrate up           - Apply all pending migrations")
+	fmt.Println("  migrate down         - Rollback all migrations")
+	fmt.Println("  migrate force <ver>  - Force set version without running migrations")
+	fmt.Println("  migrate version      - Show current migration version")
 }

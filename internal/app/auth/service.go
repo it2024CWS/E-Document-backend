@@ -186,7 +186,7 @@ func (s *service) GetProfile(ctx context.Context, userID string) (*domain.UserRe
 // buildUserClaims creates JWT claims for a user
 func (s *service) buildUserClaims(user *domain.User, tokenType string, expiry int64) jwt.MapClaims {
 	return jwt.MapClaims{
-		"user_id":       user.ID.Hex(),
+		"user_id":       user.ID.String(),
 		"username":      user.Username,
 		"email":         user.Email,
 		"phone":         user.Phone,
