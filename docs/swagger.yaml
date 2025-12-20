@@ -140,6 +140,27 @@ definitions:
       url:
         type: string
     type: object
+  internal_app_upload.UploadInfoResponse:
+    properties:
+      extensions:
+        example:
+        - creation
+        - creation-defer-length
+        - termination
+        - concatenation
+        items:
+          type: string
+        type: array
+      max_size:
+        example: 0
+        type: integer
+      tus_version:
+        example: 1.0.0
+        type: string
+      upload_path:
+        example: /api/v1/upload/files
+        type: string
+    type: object
 host: localhost:5000
 info:
   contact:
@@ -323,6 +344,372 @@ paths:
       summary: Generate presigned URL for file
       tags:
       - Files
+  /v1/storage/documents:
+    get:
+      description: Get all documents for the authenticated user with pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all documents
+      tags:
+      - Storage
+  /v1/storage/documents/{id}:
+    get:
+      description: Get document information with current attachment by ID
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get document details
+      tags:
+      - Storage
+  /v1/storage/folders/{id}:
+    get:
+      description: Get folder information by ID
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get folder details
+      tags:
+      - Storage
+  /v1/storage/folders/{id}/contents:
+    get:
+      description: Get folder information with subfolders and documents
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get folder contents
+      tags:
+      - Storage
+  /v1/storage/folders/{id}/documents:
+    get:
+      description: Get all documents in a specific folder with pagination
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get documents in a folder
+      tags:
+      - Storage
+  /v1/storage/folders/{id}/subfolders:
+    get:
+      description: Get subfolders of a folder with pagination
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get subfolders
+      tags:
+      - Storage
+  /v1/storage/folders/root:
+    get:
+      description: Get all root folders for the authenticated user
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get root folders
+      tags:
+      - Storage
+  /v1/storage/recent:
+    get:
+      description: Get recently modified files for the authenticated user
+      parameters:
+      - default: 10
+        description: Number of files to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get recent files
+      tags:
+      - Storage
+  /v1/upload/download/{id}:
+    get:
+      description: Downloads a file by attachment ID with original filename
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Download a file
+      tags:
+      - Upload
+  /v1/upload/download/folder/{id}:
+    get:
+      description: Downloads all files in a folder (including subfolders) as a ZIP
+        archive
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/zip
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Download a folder as ZIP
+      tags:
+      - Upload
+  /v1/upload/info:
+    get:
+      description: Returns information about the TUS upload service including supported
+        version and extensions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_app_upload.UploadInfoResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get upload service info
+      tags:
+      - Upload
   /v1/users:
     get:
       consumes:

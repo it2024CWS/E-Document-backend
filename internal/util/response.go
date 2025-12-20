@@ -8,19 +8,22 @@ import (
 
 // Response represents a standard API response structure
 type Response struct {
-	Success   bool        `json:"success"`
-	Message   string      `json:"message,omitempty"`
-	ErrorCode ErrorCode   `json:"error_code"`
-	Data      interface{} `json:"data,omitempty"`
+	Success    bool           `json:"success"`
+	Message    string         `json:"message,omitempty"`
+	ErrorCode  ErrorCode      `json:"error_code"`
+	Data       interface{}    `json:"data,omitempty"`
+	Pagination PaginationInfo `json:"pagination,omitempty"`
 }
 
 // SuccessResponse returns a successful response
-func SuccessResponse(c echo.Context, statusCode int, message string, data interface{}) error {
+
+func SuccessResponse(c echo.Context, statusCode int, message string, data interface{}, pagination PaginationInfo) error {
 	return c.JSON(statusCode, Response{
-		Success:   true,
-		Message:   message,
-		ErrorCode: "",
-		Data:      data,
+		Success:    true,
+		Message:    message,
+		ErrorCode:  "",
+		Data:       data,
+		Pagination: pagination,
 	})
 }
 
@@ -30,7 +33,7 @@ func OKResponse(c echo.Context, message string, data interface{}, statusCode ...
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
-	return SuccessResponse(c, code, message, data)
+	return SuccessResponse(c, code, message, data, PaginationInfo{})
 }
 
 // PaginationInfo represents pagination metadata
@@ -43,17 +46,15 @@ type PaginationInfo struct {
 
 // PaginatedData wraps items with pagination info
 type PaginatedData struct {
-	Items      interface{}    `json:"items"`
-	Pagination PaginationInfo `json:"pagination"`
+	Items interface{} `json:"items"`
 }
 
 // OKResponseWithPagination returns a 200 OK response with pagination
 func OKResponseWithPagination(c echo.Context, message string, items interface{}, pagination PaginationInfo) error {
 	data := PaginatedData{
-		Items:      items,
-		Pagination: pagination,
+		Items: items,
 	}
-	return SuccessResponse(c, http.StatusOK, message, data)
+	return SuccessResponse(c, http.StatusOK, message, data, pagination)
 }
 
 // HandleError handles error and returns appropriate response

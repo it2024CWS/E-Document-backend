@@ -47,5 +47,3 @@ build/
 
 # Air hot reload
 build-errors.log
-
-migrations/

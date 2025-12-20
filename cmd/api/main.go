@@ -4,6 +4,7 @@ import (
 	"context"
 	"e-document-backend/internal/app/auth"
 	"e-document-backend/internal/app/file"
+	"e-document-backend/internal/app/upload"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -11,6 +12,7 @@ import (
 	"e-document-backend/internal/pkg/seed"
 	"e-document-backend/internal/pkg/storage"
 	"e-document-backend/internal/platform/postgres"
+	"e-document-backend/internal/app/folder_file_manage"
 	"net/http"
 	"os"
 	"os/signal"
@@ -60,17 +62,35 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:5173"}, // ⚠️ ต้องระบุ origin ชัดเจน ไม่ใช่ "*"
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions, http.MethodHead},
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
 			echo.HeaderContentType,
 			echo.HeaderAccept,
 			echo.HeaderAuthorization,
 			"ngrok-skip-browser-warning",
+			// TUS protocol headers
+			"Upload-Offset",
+			"Upload-Length",
+			"Upload-Metadata",
+			"Upload-Defer-Length",
+			"Upload-Concat",
+			"Tus-Resumable",
+			"Tus-Version",
+			"Tus-Max-Size",
+			"Tus-Extension",
 		},
 		AllowCredentials: true,
 		ExposeHeaders: []string{
 			"Set-Cookie",
+			// TUS protocol headers
+			"Upload-Offset",
+			"Upload-Length",
+			"Location",
+			"Tus-Resumable",
+			"Tus-Version",
+			"Tus-Max-Size",
+			"Tus-Extension",
 		},
 	}))
 
@@ -118,6 +138,22 @@ func main() {
 	fileService := file.NewService(minioClient)
 	fileHandler := file.NewHandler(fileService)
 
+	// Initialize upload module (Resumable upload with tusd)
+	uploadRepo := upload.NewPostgresRepository(pgClient.Pool)
+	uploadService := upload.NewService(uploadRepo)
+	tusConfig := upload.LoadTusConfigFromEnv()
+	uploadHandler, err := upload.NewHandler(uploadService, tusConfig)
+	if err != nil {
+		logger.FatalWithErr("Failed to initialize upload handler", err)
+	}
+	logger.Info("Upload handler (tusd) initialized successfully")
+
+	// Initialize storage module (for browsing folders/documents)
+	storageRepo := folder_file_manage.NewRepository(pgClient.Pool)
+	storageService := folder_file_manage.NewService(storageRepo)
+	storageHandler := folder_file_manage.NewHandler(storageService)
+	logger.Info("Storage module initialized successfully")
+
 	// Seed admin user if it doesn't exist
 	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
 		logger.Warnf("Failed to seed admin user: %v", err)
@@ -149,6 +185,10 @@ func main() {
 	userHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register file routes
 	fileHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register storage routes (browse folders/documents)
+	storageHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register upload routes (resumable upload with tusd)
+	uploadHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register auth routes (with middleware for protected routes)
 	authHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 

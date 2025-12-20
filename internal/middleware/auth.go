@@ -12,6 +12,11 @@ import (
 func AuthMiddleware(authService auth.Service) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// Skip authentication for OPTIONS requests (CORS preflight)
+			if c.Request().Method == "OPTIONS" {
+				return next(c)
+			}
+
 			var token string
 
 			// Try to get token from Authorization header first
