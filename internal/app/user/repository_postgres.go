@@ -27,11 +27,11 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 func (r *postgresRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users (
-			id, username, email, phone, first_name, last_name,
-			password, role, department_id, sector_id, profile_picture,
+			id, username, email, phone, firstname, lastname, nickname,
+			password, role_id, department_id, sector_id, is_active, profile_picture,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)
 		RETURNING id, created_at, updated_at
 	`
@@ -45,12 +45,14 @@ func (r *postgresRepository) Create(ctx context.Context, user *domain.User) erro
 		user.Username,
 		user.Email,
 		user.Phone,
-		user.FirstName,
-		user.LastName,
+		user.Firstname,
+		user.Lastname,
+		user.Nickname,
 		user.Password,
-		user.Role,
+		user.RoleID,
 		user.DepartmentID,
 		user.SectorID,
+		user.IsActive,
 		user.ProfilePicture,
 		user.CreatedAt,
 		user.UpdatedAt,
@@ -63,14 +65,15 @@ func (r *postgresRepository) Create(ctx context.Context, user *domain.User) erro
 	return nil
 }
 
-// FindByID retrieves a user by ID
+// FindByID retrieves a user by ID with joined role, department, and sector names
 func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, phone, first_name, last_name,
-		       password, role, department_id, sector_id, profile_picture,
-		       created_at, updated_at
-		FROM users
-		WHERE id = $1
+		SELECT 
+			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
+			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
+			u.created_at, u.updated_at
+		FROM users u
+		WHERE u.id = $1
 	`
 
 	userID, err := uuid.Parse(id)
@@ -84,12 +87,14 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 		&user.Username,
 		&user.Email,
 		&user.Phone,
-		&user.FirstName,
-		&user.LastName,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Nickname,
 		&user.Password,
-		&user.Role,
+		&user.RoleID,
 		&user.DepartmentID,
 		&user.SectorID,
+		&user.IsActive,
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -108,11 +113,12 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 // FindByUsername retrieves a user by username
 func (r *postgresRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, phone, first_name, last_name,
-		       password, role, department_id, sector_id, profile_picture,
-		       created_at, updated_at
-		FROM users
-		WHERE username = $1
+		SELECT 
+			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
+			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
+			u.created_at, u.updated_at
+		FROM users u
+		WHERE u.username = $1
 	`
 
 	var user domain.User
@@ -121,12 +127,14 @@ func (r *postgresRepository) FindByUsername(ctx context.Context, username string
 		&user.Username,
 		&user.Email,
 		&user.Phone,
-		&user.FirstName,
-		&user.LastName,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Nickname,
 		&user.Password,
-		&user.Role,
+		&user.RoleID,
 		&user.DepartmentID,
 		&user.SectorID,
+		&user.IsActive,
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -145,11 +153,12 @@ func (r *postgresRepository) FindByUsername(ctx context.Context, username string
 // FindByEmail retrieves a user by email
 func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, phone, first_name, last_name,
-		       password, role, department_id, sector_id, profile_picture,
-		       created_at, updated_at
-		FROM users
-		WHERE email = $1
+		SELECT 
+			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
+			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
+			u.created_at, u.updated_at
+		FROM users u
+		WHERE u.email = $1
 	`
 
 	var user domain.User
@@ -158,12 +167,14 @@ func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*do
 		&user.Username,
 		&user.Email,
 		&user.Phone,
-		&user.FirstName,
-		&user.LastName,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Nickname,
 		&user.Password,
-		&user.Role,
+		&user.RoleID,
 		&user.DepartmentID,
 		&user.SectorID,
+		&user.IsActive,
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -182,10 +193,11 @@ func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*do
 // FindAll retrieves all users with pagination and search (excluding current user)
 func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, search string, currentUserID string) ([]domain.User, error) {
 	query := `
-		SELECT id, username, email, phone, first_name, last_name,
-		       password, role, department_id, sector_id, profile_picture,
-		       created_at, updated_at
-		FROM users
+		SELECT 
+			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
+			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
+			u.created_at, u.updated_at
+		FROM users u
 		WHERE 1=1
 	`
 
@@ -194,7 +206,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 
 	// Add search filter
 	if search != "" {
-		query += fmt.Sprintf(" AND (username ILIKE $%d OR email ILIKE $%d)", argCount, argCount)
+		query += fmt.Sprintf(" AND (u.username ILIKE $%d OR u.email ILIKE $%d)", argCount, argCount)
 		args = append(args, "%"+search+"%")
 		argCount++
 	}
@@ -203,14 +215,14 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 	if currentUserID != "" {
 		userID, err := uuid.Parse(currentUserID)
 		if err == nil {
-			query += fmt.Sprintf(" AND id != $%d", argCount)
+			query += fmt.Sprintf(" AND u.id != $%d", argCount)
 			args = append(args, userID)
 			argCount++
 		}
 	}
 
 	// Add ordering and pagination
-	query += " ORDER BY created_at DESC"
+	query += " ORDER BY u.created_at DESC"
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argCount, argCount+1)
 	args = append(args, limit, skip)
 
@@ -228,12 +240,14 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 			&user.Username,
 			&user.Email,
 			&user.Phone,
-			&user.FirstName,
-			&user.LastName,
+			&user.Firstname,
+			&user.Lastname,
+			&user.Nickname,
 			&user.Password,
-			&user.Role,
+			&user.RoleID,
 			&user.DepartmentID,
 			&user.SectorID,
+			&user.IsActive,
 			&user.ProfilePicture,
 			&user.CreatedAt,
 			&user.UpdatedAt,
@@ -290,15 +304,17 @@ func (r *postgresRepository) Update(ctx context.Context, id string, user *domain
 		SET username = $1,
 		    email = $2,
 		    phone = $3,
-		    first_name = $4,
-		    last_name = $5,
-		    password = $6,
-		    role = $7,
-		    department_id = $8,
-		    sector_id = $9,
-		    profile_picture = $10,
-		    updated_at = $11
-		WHERE id = $12
+		    firstname = $4,
+		    lastname = $5,
+		    nickname = $6,
+		    password = $7,
+		    role_id = $8,
+		    department_id = $9,
+		    sector_id = $10,
+		    is_active = $11,
+		    profile_picture = $12,
+		    updated_at = $13
+		WHERE id = $14
 	`
 
 	userID, err := uuid.Parse(id)
@@ -312,12 +328,14 @@ func (r *postgresRepository) Update(ctx context.Context, id string, user *domain
 		user.Username,
 		user.Email,
 		user.Phone,
-		user.FirstName,
-		user.LastName,
+		user.Firstname,
+		user.Lastname,
+		user.Nickname,
 		user.Password,
-		user.Role,
+		user.RoleID,
 		user.DepartmentID,
 		user.SectorID,
+		user.IsActive,
 		user.ProfilePicture,
 		user.UpdatedAt,
 		userID,

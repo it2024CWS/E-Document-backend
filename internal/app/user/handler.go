@@ -71,15 +71,34 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 func (h *Handler) CreateUser(c echo.Context) error {
 	// Parse form data
 	req := domain.CreateUserRequest{
-		Username:     c.FormValue("username"),
-		Email:        c.FormValue("email"),
-		Password:     c.FormValue("password"),
-		FirstName:    c.FormValue("first_name"),
-		LastName:     c.FormValue("last_name"),
-		Phone:        c.FormValue("phone"),
-		Role:         domain.UserRole(c.FormValue("role")),
-		DepartmentID: c.FormValue("department_id"),
-		SectorID:     c.FormValue("sector_id"),
+		Username:  c.FormValue("username"),
+		Email:     c.FormValue("email"),
+		Password:  c.FormValue("password"),
+		Firstname: c.FormValue("firstname"),
+		Lastname:  c.FormValue("lastname"),
+		Nickname:  c.FormValue("nickname"),
+		Phone:     c.FormValue("phone"),
+	}
+
+	// Parse role_id
+	if roleIDStr := c.FormValue("role_id"); roleIDStr != "" {
+		if roleID, err := strconv.Atoi(roleIDStr); err == nil {
+			req.RoleID = &roleID
+		}
+	}
+
+	// Parse department_id
+	if deptIDStr := c.FormValue("department_id"); deptIDStr != "" {
+		if deptID, err := strconv.Atoi(deptIDStr); err == nil {
+			req.DepartmentID = &deptID
+		}
+	}
+
+	// Parse sector_id
+	if sectorIDStr := c.FormValue("sector_id"); sectorIDStr != "" {
+		if sectorID, err := strconv.Atoi(sectorIDStr); err == nil {
+			req.SectorID = &sectorID
+		}
 	}
 
 	// Validate request using validator
@@ -243,19 +262,45 @@ func (h *Handler) UpdateUser(c echo.Context) error {
 
 	// Parse form data
 	req := domain.UpdateUserRequest{
-		Username:     c.FormValue("username"),
-		Email:        c.FormValue("email"),
-		Password:     c.FormValue("password"),
-		FirstName:    c.FormValue("first_name"),
-		LastName:     c.FormValue("last_name"),
-		Phone:        c.FormValue("phone"),
-		DepartmentID: c.FormValue("department_id"),
-		SectorID:     c.FormValue("sector_id"),
+		Username:  c.FormValue("username"),
+		Email:     c.FormValue("email"),
+		Password:  c.FormValue("password"),
+		Firstname: c.FormValue("firstname"),
+		Lastname:  c.FormValue("lastname"),
+		Nickname:  c.FormValue("nickname"),
+		Phone:     c.FormValue("phone"),
 	}
 
-	// Parse role if provided
-	if roleStr := c.FormValue("role"); roleStr != "" {
-		req.Role = domain.UserRole(roleStr)
+	// Parse role_id if provided
+	if roleIDStr := c.FormValue("role_id"); roleIDStr != "" {
+		if roleID, err := strconv.Atoi(roleIDStr); err == nil {
+			req.RoleID = &roleID
+		}
+	}
+
+	// Parse department_id if provided
+	if deptIDStr := c.FormValue("department_id"); deptIDStr != "" {
+		if deptID, err := strconv.Atoi(deptIDStr); err == nil {
+			req.DepartmentID = &deptID
+		}
+	}
+
+	// Parse sector_id if provided
+	if sectorIDStr := c.FormValue("sector_id"); sectorIDStr != "" {
+		if sectorID, err := strconv.Atoi(sectorIDStr); err == nil {
+			req.SectorID = &sectorID
+		}
+	}
+
+	// Parse is_active if provided
+	if isActiveStr := c.FormValue("is_active"); isActiveStr != "" {
+		if isActiveStr == "true" {
+			isActive := true
+			req.IsActive = &isActive
+		} else if isActiveStr == "false" {
+			isActive := false
+			req.IsActive = &isActive
+		}
 	}
 
 	// Validate request using validator

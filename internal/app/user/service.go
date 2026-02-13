@@ -60,15 +60,16 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 		return nil, util.NewAlreadyExistsError("User", "username", normalizedUsername)
 	}
 
-	// Validate role
-	if !req.Role.IsValid() {
-		return nil, util.NewInvalidInputError("Role", "must be Director, DepartmentManager, SectorManager, or Employee")
-	}
-
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, util.NewInternalError(fmt.Sprintf("failed to hash password: %v", err))
+	}
+
+	// Set default is_active to true if not provided
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
 	}
 
 	// Create user object
@@ -76,12 +77,14 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 		Username:     normalizedUsername,
 		Email:        normalizedEmail,
 		Password:     string(hashedPassword),
-		Role:         req.Role,
+		RoleID:       req.RoleID,
 		Phone:        req.Phone,
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
+		Firstname:    req.Firstname,
+		Lastname:     req.Lastname,
+		Nickname:     req.Nickname,
 		DepartmentID: req.DepartmentID,
 		SectorID:     req.SectorID,
+		IsActive:     isActive,
 	}
 
 	// Save to database
@@ -219,32 +222,44 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 		}
 	}
 
-	// Check if role is being changed and validate it
-	if req.Role != "" {
-		if !req.Role.IsValid() {
-			return nil, util.ErrorResponse(
-				"Invalid role",
-				util.INVALID_INPUT,
-				400,
-				"role must be Director, DepartmentManager, SectorManager, or Employee",
-			)
-		}
-		existingUser.Role = req.Role
-	}
-
 	// Update phone if provided
 	if req.Phone != "" {
 		existingUser.Phone = req.Phone
 	}
 
-	// Update first name if provided
-	if req.FirstName != "" {
-		existingUser.FirstName = req.FirstName
+	// Update firstname if provided
+	if req.Firstname != "" {
+		existingUser.Firstname = req.Firstname
 	}
 
-	// Update last name if provided
-	if req.LastName != "" {
-		existingUser.LastName = req.LastName
+	// Update lastname if provided
+	if req.Lastname != "" {
+		existingUser.Lastname = req.Lastname
+	}
+
+	// Update nickname if provided
+	if req.Nickname != "" {
+		existingUser.Nickname = req.Nickname
+	}
+
+	// Update role_id if provided
+	if req.RoleID != nil {
+		existingUser.RoleID = req.RoleID
+	}
+
+	// Update department_id if provided
+	if req.DepartmentID != nil {
+		existingUser.DepartmentID = req.DepartmentID
+	}
+
+	// Update sector_id if provided
+	if req.SectorID != nil {
+		existingUser.SectorID = req.SectorID
+	}
+
+	// Update is_active if provided
+	if req.IsActive != nil {
+		existingUser.IsActive = *req.IsActive
 	}
 
 	// Update password if provided

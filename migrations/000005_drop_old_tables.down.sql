@@ -1,0 +1,3 @@
+-- Recreate old tables (rollback)
+-- Note: This is a placeholder. In production, you would restore from backup.
+-- For now, we just note that the old tables can't be automatically restored.

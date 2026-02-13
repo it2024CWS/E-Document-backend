@@ -3,8 +3,14 @@ package main
 import (
 	"context"
 	"e-document-backend/internal/app/auth"
+	"e-document-backend/internal/app/department"
+	"e-document-backend/internal/app/doctype"
+	"e-document-backend/internal/app/document"
 	"e-document-backend/internal/app/file"
-	"e-document-backend/internal/app/upload"
+	"e-document-backend/internal/app/incomingdoc"
+	"e-document-backend/internal/app/outgoingdoc"
+	"e-document-backend/internal/app/role"
+	"e-document-backend/internal/app/sector"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -12,7 +18,6 @@ import (
 	"e-document-backend/internal/pkg/seed"
 	"e-document-backend/internal/pkg/storage"
 	"e-document-backend/internal/platform/postgres"
-	"e-document-backend/internal/app/folder_file_manage"
 	"net/http"
 	"os"
 	"os/signal"
@@ -138,22 +143,6 @@ func main() {
 	fileService := file.NewService(minioClient)
 	fileHandler := file.NewHandler(fileService)
 
-	// Initialize upload module (Resumable upload with tusd)
-	uploadRepo := upload.NewPostgresRepository(pgClient.Pool)
-	uploadService := upload.NewService(uploadRepo)
-	tusConfig := upload.LoadTusConfigFromEnv()
-	uploadHandler, err := upload.NewHandler(uploadService, tusConfig)
-	if err != nil {
-		logger.FatalWithErr("Failed to initialize upload handler", err)
-	}
-	logger.Info("Upload handler (tusd) initialized successfully")
-
-	// Initialize storage module (for browsing folders/documents)
-	storageRepo := folder_file_manage.NewRepository(pgClient.Pool)
-	storageService := folder_file_manage.NewService(storageRepo)
-	storageHandler := folder_file_manage.NewHandler(storageService)
-	logger.Info("Storage module initialized successfully")
-
 	// Seed admin user if it doesn't exist
 	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
 		logger.Warnf("Failed to seed admin user: %v", err)
@@ -162,6 +151,41 @@ func main() {
 	// Initialize auth module (Handler-Service)
 	authService := auth.NewService(userRepo, cfg)
 	authHandler := auth.NewHandler(authService)
+
+	// Initialize role module
+	roleRepo := role.NewPostgresRepository(pgClient.Pool)
+	roleService := role.NewService(roleRepo)
+	roleHandler := role.NewHandler(roleService)
+
+	// Initialize department module
+	departmentRepo := department.NewPostgresRepository(pgClient.Pool)
+	departmentService := department.NewService(departmentRepo)
+	departmentHandler := department.NewHandler(departmentService)
+
+	// Initialize sector module
+	sectorRepo := sector.NewPostgresRepository(pgClient.Pool)
+	sectorService := sector.NewService(sectorRepo)
+	sectorHandler := sector.NewHandler(sectorService)
+
+	// Initialize doctype module
+	doctypeRepo := doctype.NewPostgresRepository(pgClient.Pool)
+	doctypeService := doctype.NewService(doctypeRepo)
+	doctypeHandler := doctype.NewHandler(doctypeService)
+
+	// Initialize incomingdoc module
+	incomingdocRepo := incomingdoc.NewPostgresRepository(pgClient.Pool)
+	incomingdocService := incomingdoc.NewService(incomingdocRepo)
+	incomingdocHandler := incomingdoc.NewHandler(incomingdocService)
+
+	// Initialize outgoingdoc module
+	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
+	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo)
+	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
+
+	// Initialize document module
+	documentRepo := document.NewPostgresRepository(pgClient.Pool)
+	documentService := document.NewService(documentRepo, incomingdocRepo, outgoingdocRepo)
+	documentHandler := document.NewHandler(documentService)
 
 	// API routes
 	api := e.Group("/api")
@@ -185,12 +209,22 @@ func main() {
 	userHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register file routes
 	fileHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
-	// Register storage routes (browse folders/documents)
-	storageHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
-	// Register upload routes (resumable upload with tusd)
-	uploadHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register auth routes (with middleware for protected routes)
 	authHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register role routes
+	roleHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register department routes
+	departmentHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register sector routes
+	sectorHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register doctype routes
+	doctypeHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register document routes
+	documentHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register incomingdoc routes
+	incomingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register outgoingdoc routes
+	outgoingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 
 	// Start server
 	go func() {

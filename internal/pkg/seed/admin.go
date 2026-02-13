@@ -26,14 +26,17 @@ func SeedAdmin(ctx context.Context, userRepo user.Repository, cfg *config.Config
 	}
 
 	// Create admin user
+	roleID := 1 // Assuming Director role has ID 1
+	isActive := true
 	adminUser := &domain.User{
 		Username:  cfg.Admin.Username,
 		Email:     cfg.Admin.Email,
 		Password:  string(hashedPassword),
-		FirstName: "Admin",
-		LastName:  "User",
+		Firstname: "Admin",
+		Lastname:  "User",
 		Phone:     "000-000-0000",
-		Role:      domain.RoleDirector, // Admin has Director role
+		RoleID:    &roleID, // Director role
+		IsActive:  isActive,
 	}
 
 	if err := userRepo.Create(ctx, adminUser); err != nil {

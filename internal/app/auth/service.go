@@ -185,14 +185,23 @@ func (s *service) GetProfile(ctx context.Context, userID string) (*domain.UserRe
 
 // buildUserClaims creates JWT claims for a user
 func (s *service) buildUserClaims(user *domain.User, tokenType string, expiry int64) jwt.MapClaims {
+	// Convert role_id to int for JWT (could be null)
+	var roleID interface{}
+	var roleName string
+	if user.RoleID != nil {
+		roleID = *user.RoleID
+	}
+
 	return jwt.MapClaims{
 		"user_id":       user.ID.String(),
 		"username":      user.Username,
 		"email":         user.Email,
 		"phone":         user.Phone,
-		"first_name":    user.FirstName,
-		"last_name":     user.LastName,
-		"role":          user.Role.String(),
+		"firstname":     user.Firstname,
+		"lastname":      user.Lastname,
+		"nickname":      user.Nickname,
+		"role_id":       roleID,
+		"role_name":     roleName,
 		"department_id": user.DepartmentID,
 		"sector_id":     user.SectorID,
 		"type":          tokenType,
@@ -225,21 +234,49 @@ func parseTokenClaims(claims jwt.MapClaims) *domain.TokenClaims {
 	username, _ := claims["username"].(string)
 	email, _ := claims["email"].(string)
 	phone, _ := claims["phone"].(string)
-	firstName, _ := claims["first_name"].(string)
-	lastName, _ := claims["last_name"].(string)
-	role, _ := claims["role"].(string)
-	departmentID, _ := claims["department_id"].(string)
-	sectorID, _ := claims["sector_id"].(string)
+	firstname, _ := claims["firstname"].(string)
+	lastname, _ := claims["lastname"].(string)
+	nickname, _ := claims["nickname"].(string)
+	roleName, _ := claims["role_name"].(string)
 	tokenType, _ := claims["type"].(string)
+
+	// Handle role_id (could be float64 from JSON unmarshaling)
+	var roleID *int
+	if roleIDRaw, ok := claims["role_id"]; ok && roleIDRaw != nil {
+		if roleIDFloat, ok := roleIDRaw.(float64); ok {
+			roleIDInt := int(roleIDFloat)
+			roleID = &roleIDInt
+		}
+	}
+
+	// Handle department_id
+	var departmentID *int
+	if deptIDRaw, ok := claims["department_id"]; ok && deptIDRaw != nil {
+		if deptIDFloat, ok := deptIDRaw.(float64); ok {
+			deptIDInt := int(deptIDFloat)
+			departmentID = &deptIDInt
+		}
+	}
+
+	// Handle sector_id
+	var sectorID *int
+	if sectIDRaw, ok := claims["sector_id"]; ok && sectIDRaw != nil {
+		if sectIDFloat, ok := sectIDRaw.(float64); ok {
+			sectIDInt := int(sectIDFloat)
+			sectorID = &sectIDInt
+		}
+	}
 
 	return &domain.TokenClaims{
 		UserID:       userID,
 		Username:     username,
 		Email:        email,
 		Phone:        phone,
-		FirstName:    firstName,
-		LastName:     lastName,
-		Role:         role,
+		Firstname:    firstname,
+		Lastname:     lastname,
+		Nickname:     nickname,
+		RoleID:       roleID,
+		RoleName:     roleName,
 		DepartmentID: departmentID,
 		SectorID:     sectorID,
 		Type:         tokenType,
