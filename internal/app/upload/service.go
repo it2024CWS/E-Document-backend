@@ -3,6 +3,7 @@ package upload
 import (
 	"context"
 	"e-document-backend/internal/domain"
+	"e-document-backend/internal/util"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -20,16 +21,16 @@ type Service interface {
 	GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*domain.DocumentAttachment, error)
 
 	// GetFolderAttachments retrieves all attachments in a folder (recursively)
-	GetFolderAttachments(ctx context.Context, folderID uuid.UUID) ([]*domain.DocumentAttachment, error)
+	GetFolderAttachments(ctx context.Context, folderID int) ([]*domain.DocumentAttachment, error)
 
 	// GetFolder retrieves folder details by ID
-	GetFolder(ctx context.Context, folderID uuid.UUID) (*domain.Folder, error)
+	GetFolder(ctx context.Context, folderID int) (*domain.Folder, error)
 }
 
 // ProcessUploadParams contains parameters for processing an upload
 type ProcessUploadParams struct {
 	RelativePath   string     // e.g., "Photos/2024/beach.jpg"
-	ParentFolderID *uuid.UUID // optional: if provided, use as root
+	ParentFolderID *uuid.UUID // optional: if provided, use as root folder
 	OwnerID        uuid.UUID  // required: owner of the folders/documents
 	FilePath       string     // MinIO object path
 	FileSize       int64      // file size in bytes
@@ -92,7 +93,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 	var currentParentID *uuid.UUID = params.ParentFolderID
 	var currentPath string
 
-	for i, folderName := range folderParts {
+	for _, folderName := range folderParts {
 		// Build the path for this folder level
 		if currentPath == "" {
 			currentPath = folderName
@@ -100,14 +101,8 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 			currentPath = currentPath + "/" + folderName
 		}
 
-		// Determine if this is a root folder
-		// It's a root folder ONLY if:
-		// 1. It's the first folder in the path AND
-		// 2. No parent_folder_id was provided from the client
-		isRootFolder := i == 0 && params.ParentFolderID == nil
-
 		// Try to find existing folder
-		folder, findErr := s.repo.FindFolderByNameAndParent(ctx, tx, folderName, currentParentID, params.OwnerID)
+		folder, findErr := s.repo.FindFolderByNameAndParent(ctx, tx, folderName, currentParentID, params.OwnerID.String())
 		if findErr != nil {
 			err = findErr
 			return nil, err
@@ -116,11 +111,10 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		if folder == nil {
 			// Create new folder
 			folder = &domain.Folder{
-				Name:           folderName,
-				Path:           currentPath,
-				IsRootFolder:   isRootFolder,
+				FolderName:     folderName,
+				FolderPath:     currentPath,
+				UserID:         params.OwnerID,
 				ParentFolderID: currentParentID,
-				OwnerID:        params.OwnerID,
 			}
 
 			if createErr := s.repo.CreateFolder(ctx, tx, folder); createErr != nil {
@@ -131,7 +125,6 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 			log.Info().
 				Str("folder_name", folderName).
 				Str("path", currentPath).
-				Bool("is_root", isRootFolder).
 				Msg("Created new folder")
 		}
 
@@ -139,14 +132,19 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		currentParentID = &folder.ID
 	}
 
-	// Create document - use the filename as title
+	// Create document – use filename (without extension) as doc name
 	titleWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	docNo := util.GenerateLALDocNumber()
+	docExt := strings.TrimPrefix(filepath.Ext(fileName), ".")
 	doc := &domain.Document{
-		Title:        titleWithoutExt,
-		Type:         domain.DocumentTypeGeneral,
-		FolderID:     currentParentID, // Last folder in the hierarchy
-		RegistrantID: &params.OwnerID,
-		Status:       domain.DocumentStatusDraft,
+		DocNo:         docNo,
+		DocName:       titleWithoutExt,
+		DocPath:       params.FilePath,
+		Type:          docExt,
+		FolderID:      currentParentID,
+		RegistrantID:  &params.OwnerID,
+		Status:        domain.StatusNone,
+		VersionNumber: 1,
 	}
 
 	if createErr := s.repo.CreateDocument(ctx, tx, doc); createErr != nil {
@@ -157,11 +155,12 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 	log.Info().
 		Str("document_id", doc.ID.String()).
-		Str("title", doc.Title).
+		Str("doc_name", doc.DocName).
 		Msg("Created new document")
 
 	// Create attachment
 	attachment := &domain.DocumentAttachment{
+		ID:         uuid.New(),
 		DocumentID: doc.ID,
 		FileName:   fileName,
 		FilePath:   params.FilePath,
@@ -169,7 +168,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		FileType:   params.FileType,
 		Version:    1,
 		IsCurrent:  true,
-		UploadedBy: &params.OwnerID,
+		UploadedBy: params.OwnerID,
 	}
 
 	if createErr := s.repo.CreateAttachment(ctx, tx, attachment); createErr != nil {
@@ -177,6 +176,17 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		return nil, err
 	}
 	result.Attachment = attachment
+
+	// Create version
+	version := &domain.Version{
+		DocID:         doc.ID,
+		VersionNumber: 1,
+		DocPath:       params.FilePath,
+	}
+	if createErr := s.repo.CreateVersion(ctx, tx, version); createErr != nil {
+		err = createErr
+		return nil, err
+	}
 
 	log.Info().
 		Str("attachment_id", attachment.ID.String()).
@@ -196,27 +206,18 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 // parsePath splits a path string into individual parts, handling both / and \ separators
 func parsePath(path string) []string {
-	// Normalize path separators
 	normalized := strings.ReplaceAll(path, "\\", "/")
-
-	// Remove leading/trailing slashes
 	normalized = strings.Trim(normalized, "/")
-
 	if normalized == "" {
 		return []string{}
 	}
-
-	// Split by /
 	parts := strings.Split(normalized, "/")
-
-	// Filter out empty parts
 	result := make([]string, 0, len(parts))
 	for _, part := range parts {
 		if part != "" {
 			result = append(result, part)
 		}
 	}
-
 	return result
 }
 
@@ -226,11 +227,11 @@ func (s *service) GetAttachment(ctx context.Context, attachmentID uuid.UUID) (*d
 }
 
 // GetFolderAttachments retrieves all attachments in a folder (recursively)
-func (s *service) GetFolderAttachments(ctx context.Context, folderID uuid.UUID) ([]*domain.DocumentAttachment, error) {
+func (s *service) GetFolderAttachments(ctx context.Context, folderID int) ([]*domain.DocumentAttachment, error) {
 	return s.repo.GetAttachmentsByFolderID(ctx, folderID)
 }
 
 // GetFolder retrieves folder details by ID
-func (s *service) GetFolder(ctx context.Context, folderID uuid.UUID) (*domain.Folder, error) {
+func (s *service) GetFolder(ctx context.Context, folderID int) (*domain.Folder, error) {
 	return s.repo.GetFolderByID(ctx, folderID)
 }

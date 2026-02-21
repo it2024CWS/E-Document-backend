@@ -1,10 +1,14 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // DocType represents a document type in the system
 type DocType struct {
-	ID          int       `json:"id" db:"id"`
+	ID          uuid.UUID `json:"id" db:"id"`
 	TypeName    string    `json:"type_name" db:"type_name" validate:"required"`
 	Description string    `json:"description" db:"description"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -25,7 +29,7 @@ type UpdateDocTypeRequest struct {
 
 // DocTypeResponse represents the document type response
 type DocTypeResponse struct {
-	ID          int       `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	TypeName    string    `json:"type_name"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

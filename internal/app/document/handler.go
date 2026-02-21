@@ -4,8 +4,8 @@ import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"net/http"
-	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -21,7 +21,7 @@ func NewHandler(service Service) *Handler {
 
 // RegisterRoutes registers the document routes
 func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFunc) {
-	docs := e.Group("/documents", middleware...)
+	docs := e.Group("/v1/documents", middleware...)
 	docs.GET("", h.GetAllDocuments)
 	docs.GET("/:id", h.GetDocumentByID)
 	docs.GET("/folder/:folderId", h.GetDocumentsByFolder)
@@ -69,9 +69,9 @@ func (h *Handler) GetAllDocuments(c echo.Context) error {
 //	@Router			/v1/documents/{id} [get]
 func (h *Handler) GetDocumentByID(c echo.Context) error {
 	ctx := c.Request().Context()
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	doc, err := h.service.GetDocumentByID(ctx, id)
@@ -97,9 +97,9 @@ func (h *Handler) GetDocumentByID(c echo.Context) error {
 //	@Router			/v1/documents/folder/{folderId} [get]
 func (h *Handler) GetDocumentsByFolder(c echo.Context) error {
 	ctx := c.Request().Context()
-	folderID, err := strconv.Atoi(c.Param("folderId"))
+	folderID, err := uuid.Parse(c.Param("folderId"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("folderId", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("folderId", "must be a valid UUID"))
 	}
 
 	docs, err := h.service.GetDocumentsByFolder(ctx, folderID)
@@ -167,9 +167,9 @@ func (h *Handler) CreateDocument(c echo.Context) error {
 //	@Router			/v1/documents/{id} [put]
 func (h *Handler) UpdateDocument(c echo.Context) error {
 	ctx := c.Request().Context()
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	var req domain.UpdateDocumentRequest
@@ -210,9 +210,9 @@ func (h *Handler) UpdateDocument(c echo.Context) error {
 //	@Router			/v1/documents/{id}/versions [get]
 func (h *Handler) GetDocumentVersions(c echo.Context) error {
 	ctx := c.Request().Context()
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	versions, err := h.service.GetDocumentVersions(ctx, id)
@@ -241,9 +241,9 @@ func (h *Handler) GetDocumentVersions(c echo.Context) error {
 func (h *Handler) SendDocument(c echo.Context) error {
 	ctx := c.Request().Context()
 	userID := util.GetUserIDFromContext(c)
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	var req domain.SendDocumentRequest
@@ -273,9 +273,9 @@ func (h *Handler) SendDocument(c echo.Context) error {
 //	@Router			/v1/documents/{id} [delete]
 func (h *Handler) DeleteDocument(c echo.Context) error {
 	ctx := c.Request().Context()
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	if err := h.service.DeleteDocument(ctx, id); err != nil {

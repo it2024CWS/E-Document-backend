@@ -280,12 +280,11 @@ func (w *locationFixerWriter) WriteHeader(statusCode int) {
 
 			// Extract upload ID from location (could be absolute or relative URL)
 			if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
-				// Absolute URL - malformed like: http://localhost:5000uploadid
-				// Find ":5000" and extract everything after it
-				idx := strings.Index(location, ":5000")
+				// Find ":5001" and extract everything after it
+				idx := strings.Index(location, ":5001")
 				if idx >= 0 {
-					// Everything after ":5000" is the upload ID
-					uploadID = location[idx+5:] // +5 to skip ":5000"
+					// Everything after ":5001" is the upload ID
+					uploadID = location[idx+5:] // +5 to skip ":5001"
 				} else {
 					// Try normal URL parsing
 					if u, err := url.Parse(location); err == nil {
@@ -506,9 +505,9 @@ func (h *Handler) DownloadFile(c echo.Context) error {
 func (h *Handler) DownloadFolder(c echo.Context) error {
 	// Get folder ID from URL parameter
 	folderIDStr := c.Param("id")
-	folderID, err := uuid.Parse(folderIDStr)
-	if err != nil {
-		return util.HandleError(c, util.ErrorResponse("Invalid folder ID", util.INVALID_INPUT, 400, "The provided folder ID is not a valid UUID"))
+	var folderID int
+	if _, scanErr := fmt.Sscan(folderIDStr, &folderID); scanErr != nil {
+		return util.HandleError(c, util.ErrorResponse("Invalid folder ID", util.INVALID_INPUT, 400, "The provided folder ID is not a valid integer"))
 	}
 
 	// Get folder details to use the folder name
@@ -531,7 +530,7 @@ func (h *Handler) DownloadFolder(c echo.Context) error {
 
 	// Set response headers for ZIP download using folder name
 	c.Response().Header().Set("Content-Type", "application/zip")
-	c.Response().Header().Set("Content-Disposition", encodeFilename(folder.Name+".zip"))
+	c.Response().Header().Set("Content-Disposition", encodeFilename(folder.FolderName+".zip"))
 	c.Response().WriteHeader(200)
 
 	// Create ZIP writer that writes directly to response

@@ -8,24 +8,24 @@ import (
 
 // OutgoingDoc represents an outgoing document
 type OutgoingDoc struct {
-	ID         int        `json:"id" db:"id"`
+	ID         uuid.UUID  `json:"id" db:"id"`
 	OutgoingNo string     `json:"outgoing_no" db:"outgoing_no" validate:"required"`
-	DocID      int        `json:"doc_id" db:"doc_id" validate:"required"`
+	DocID      uuid.UUID  `json:"doc_id" db:"doc_id" validate:"required"`
 	UserID     *uuid.UUID `json:"user_id" db:"user_id"`
 	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 }
 
 // CreateOutgoingDocRequest represents the request body for creating an outgoing document
 type CreateOutgoingDocRequest struct {
-	DocID  int        `json:"doc_id" validate:"required"`
+	DocID  uuid.UUID  `json:"doc_id" validate:"required"`
 	UserID *uuid.UUID `json:"user_id"`
 }
 
 // OutgoingDocResponse represents the outgoing document response
 type OutgoingDocResponse struct {
-	ID         int        `json:"id"`
+	ID         uuid.UUID  `json:"id"`
 	OutgoingNo string     `json:"outgoing_no"`
-	DocID      int        `json:"doc_id"`
+	DocID      uuid.UUID  `json:"doc_id"`
 	DocNo      string     `json:"doc_no,omitempty"`
 	DocName    string     `json:"doc_name,omitempty"`
 	UserID     *uuid.UUID `json:"user_id"`

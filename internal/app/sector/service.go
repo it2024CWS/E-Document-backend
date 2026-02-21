@@ -4,16 +4,17 @@ import (
 	"context"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type Service interface {
 	GetAllSectors(ctx context.Context) ([]domain.SectorResponse, error)
-	GetSectorByID(ctx context.Context, id int) (*domain.SectorResponse, error)
-	GetSectorsByDepartment(ctx context.Context, deptID int) ([]domain.SectorResponse, error)
+	GetSectorByID(ctx context.Context, id uuid.UUID) (*domain.SectorResponse, error)
+	GetSectorsByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.SectorResponse, error)
 	CreateSector(ctx context.Context, req domain.CreateSectorRequest) (*domain.SectorResponse, error)
-	UpdateSector(ctx context.Context, id int, req domain.UpdateSectorRequest) (*domain.SectorResponse, error)
-	DeleteSector(ctx context.Context, id int) error
+	UpdateSector(ctx context.Context, id uuid.UUID, req domain.UpdateSectorRequest) (*domain.SectorResponse, error)
+	DeleteSector(ctx context.Context, id uuid.UUID) error
 }
 
 type service struct {
@@ -38,17 +39,17 @@ func (s *service) GetAllSectors(ctx context.Context) ([]domain.SectorResponse, e
 	return responses, nil
 }
 
-func (s *service) GetSectorByID(ctx context.Context, id int) (*domain.SectorResponse, error) {
+func (s *service) GetSectorByID(ctx context.Context, id uuid.UUID) (*domain.SectorResponse, error) {
 	sector, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Sector", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Sector", id.String())
 	}
 
 	response := sector.ToResponse()
 	return &response, nil
 }
 
-func (s *service) GetSectorsByDepartment(ctx context.Context, deptID int) ([]domain.SectorResponse, error) {
+func (s *service) GetSectorsByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.SectorResponse, error) {
 	sectors, err := s.repo.FindByDepartmentID(ctx, deptID)
 	if err != nil {
 		return nil, util.NewDatabaseError("get sectors by department", err)
@@ -80,21 +81,21 @@ func (s *service) CreateSector(ctx context.Context, req domain.CreateSectorReque
 	return &response, nil
 }
 
-func (s *service) UpdateSector(ctx context.Context, id int, req domain.UpdateSectorRequest) (*domain.SectorResponse, error) {
+func (s *service) UpdateSector(ctx context.Context, id uuid.UUID, req domain.UpdateSectorRequest) (*domain.SectorResponse, error) {
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
 	existingSector, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Sector", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Sector", id.String())
 	}
 
 	if req.Name != "" {
 		existingSector.Name = req.Name
 	}
-	if req.DeptID != 0 {
-		existingSector.DeptID = req.DeptID
+	if req.DeptID != nil {
+		existingSector.DeptID = *req.DeptID
 	}
 
 	if err := s.repo.Update(ctx, id, existingSector); err != nil {
@@ -110,9 +111,9 @@ func (s *service) UpdateSector(ctx context.Context, id int, req domain.UpdateSec
 	return &response, nil
 }
 
-func (s *service) DeleteSector(ctx context.Context, id int) error {
+func (s *service) DeleteSector(ctx context.Context, id uuid.UUID) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return util.NewNotFoundError("Sector", fmt.Sprintf("%d", id))
+		return util.NewNotFoundError("Sector", id.String())
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {

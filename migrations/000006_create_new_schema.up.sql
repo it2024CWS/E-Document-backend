@@ -1,6 +1,6 @@
 -- Create user_roles table
 CREATE TABLE IF NOT EXISTS user_roles (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -17,7 +17,7 @@ INSERT INTO user_roles (role_name, description) VALUES
 
 -- Create departments table
 CREATE TABLE IF NOT EXISTS departments (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dept_name VARCHAR(255) NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -26,16 +26,16 @@ CREATE TABLE IF NOT EXISTS departments (
 
 -- Create sectors table
 CREATE TABLE IF NOT EXISTS sectors (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    dept_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+    dept_id UUID REFERENCES departments(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Update users table structure
 ALTER TABLE users DROP COLUMN IF EXISTS role;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES user_roles(id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_id UUID REFERENCES user_roles(id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS firstname VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS lastname VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(255);
@@ -49,9 +49,9 @@ UPDATE users SET lastname = last_name WHERE lastname IS NULL;
 ALTER TABLE users DROP COLUMN IF EXISTS first_name;
 ALTER TABLE users DROP COLUMN IF EXISTS last_name;
 
--- Update department_id and sector_id to be integers
-ALTER TABLE users ALTER COLUMN department_id TYPE INTEGER USING department_id::integer;
-ALTER TABLE users ALTER COLUMN sector_id TYPE INTEGER USING sector_id::integer;
+-- Update department_id and sector_id to be UUIDs (they were VARCHAR before)
+ALTER TABLE users ALTER COLUMN department_id TYPE UUID USING NULLIF(department_id, '')::uuid;
+ALTER TABLE users ALTER COLUMN sector_id TYPE UUID USING NULLIF(sector_id, '')::uuid;
 
 -- Add foreign keys
 ALTER TABLE users ADD CONSTRAINT fk_users_department 
@@ -61,7 +61,7 @@ ALTER TABLE users ADD CONSTRAINT fk_users_sector
 
 -- Create doc_types table
 CREATE TABLE IF NOT EXISTS doc_types (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type_name VARCHAR(255) NOT NULL,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -70,23 +70,23 @@ CREATE TABLE IF NOT EXISTS doc_types (
 
 -- Create folders table with self-reference
 CREATE TABLE IF NOT EXISTS folders (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_name VARCHAR(255) NOT NULL,
     folder_path TEXT NOT NULL,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    parent_folder_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
+    parent_folder_id UUID REFERENCES folders(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create docs table
 CREATE TABLE IF NOT EXISTS docs (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     doc_no VARCHAR(50) UNIQUE NOT NULL,
     doc_name VARCHAR(255) NOT NULL,
     doc_path TEXT,
     type VARCHAR(50),
-    doc_type_id INTEGER REFERENCES doc_types(id) ON DELETE SET NULL,
-    folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL,
+    doc_type_id UUID REFERENCES doc_types(id) ON DELETE SET NULL,
+    folder_id UUID REFERENCES folders(id) ON DELETE SET NULL,
     status VARCHAR(50) DEFAULT 'none' CHECK (status IN ('none', 'pending', 'waiting_approval', 'approved')),
     version_number INTEGER DEFAULT 1,
     description TEXT,
@@ -97,9 +97,9 @@ CREATE TABLE IF NOT EXISTS docs (
 
 -- Create incoming_docs table
 CREATE TABLE IF NOT EXISTS incoming_docs (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     incoming_no VARCHAR(50) UNIQUE NOT NULL,
-    doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+    doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,
     sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
     receiver_id UUID REFERENCES users(id) ON DELETE SET NULL,
     approver_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -112,17 +112,17 @@ CREATE TABLE IF NOT EXISTS incoming_docs (
 
 -- Create outgoing_docs table
 CREATE TABLE IF NOT EXISTS outgoing_docs (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     outgoing_no VARCHAR(50) UNIQUE NOT NULL,
-    doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+    doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create versions table
 CREATE TABLE IF NOT EXISTS versions (
-    id SERIAL PRIMARY KEY,
-    doc_id INTEGER REFERENCES docs(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,
     version_number INTEGER NOT NULL,
     doc_path TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

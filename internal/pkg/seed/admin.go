@@ -6,12 +6,15 @@ import (
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/logger"
+	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // SeedAdmin creates an admin user if it doesn't exist
-func SeedAdmin(ctx context.Context, userRepo user.Repository, cfg *config.Config) error {
+func SeedAdmin(ctx context.Context, userRepo user.Repository, pool *pgxpool.Pool, cfg *config.Config) error {
 	// Check if admin user already exists
 	existingUser, err := userRepo.FindByEmail(ctx, cfg.Admin.Email)
 	if err == nil && existingUser != nil {
@@ -26,7 +29,13 @@ func SeedAdmin(ctx context.Context, userRepo user.Repository, cfg *config.Config
 	}
 
 	// Create admin user
-	roleID := 1 // Assuming Director role has ID 1
+	// Find Director role ID
+	var roleID uuid.UUID
+	err = pool.QueryRow(ctx, "SELECT id FROM user_roles WHERE role_name = 'Director'").Scan(&roleID)
+	if err != nil {
+		return fmt.Errorf("failed to find Director role: %w", err)
+	}
+
 	isActive := true
 	adminUser := &domain.User{
 		Username:  cfg.Admin.Username,

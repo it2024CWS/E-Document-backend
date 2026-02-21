@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -240,30 +241,33 @@ func parseTokenClaims(claims jwt.MapClaims) *domain.TokenClaims {
 	roleName, _ := claims["role_name"].(string)
 	tokenType, _ := claims["type"].(string)
 
-	// Handle role_id (could be float64 from JSON unmarshaling)
-	var roleID *int
+	// Handle role_id (could be string from JSON unmarshaling)
+	var roleID *uuid.UUID
 	if roleIDRaw, ok := claims["role_id"]; ok && roleIDRaw != nil {
-		if roleIDFloat, ok := roleIDRaw.(float64); ok {
-			roleIDInt := int(roleIDFloat)
-			roleID = &roleIDInt
+		if roleIDStr, ok := roleIDRaw.(string); ok {
+			if parsed, err := uuid.Parse(roleIDStr); err == nil {
+				roleID = &parsed
+			}
 		}
 	}
 
 	// Handle department_id
-	var departmentID *int
+	var departmentID *uuid.UUID
 	if deptIDRaw, ok := claims["department_id"]; ok && deptIDRaw != nil {
-		if deptIDFloat, ok := deptIDRaw.(float64); ok {
-			deptIDInt := int(deptIDFloat)
-			departmentID = &deptIDInt
+		if deptIDStr, ok := deptIDRaw.(string); ok {
+			if parsed, err := uuid.Parse(deptIDStr); err == nil {
+				departmentID = &parsed
+			}
 		}
 	}
 
 	// Handle sector_id
-	var sectorID *int
+	var sectorID *uuid.UUID
 	if sectIDRaw, ok := claims["sector_id"]; ok && sectIDRaw != nil {
-		if sectIDFloat, ok := sectIDRaw.(float64); ok {
-			sectIDInt := int(sectIDFloat)
-			sectorID = &sectIDInt
+		if sectIDStr, ok := sectIDRaw.(string); ok {
+			if parsed, err := uuid.Parse(sectIDStr); err == nil {
+				sectorID = &parsed
+			}
 		}
 	}
 

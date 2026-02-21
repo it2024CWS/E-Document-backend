@@ -1,10 +1,14 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // Department represents a department in the system
 type Department struct {
-	ID          int       `json:"id" db:"id"`
+	ID          uuid.UUID `json:"id" db:"id"`
 	DeptName    string    `json:"dept_name" db:"dept_name" validate:"required"`
 	Description string    `json:"description" db:"description"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -25,7 +29,7 @@ type UpdateDepartmentRequest struct {
 
 // DepartmentResponse represents the department response
 type DepartmentResponse struct {
-	ID          int       `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	DeptName    string    `json:"dept_name"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

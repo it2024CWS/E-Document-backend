@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -43,7 +44,7 @@ func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.Sector, erro
 	return sectors, rows.Err()
 }
 
-func (r *postgresRepository) FindByID(ctx context.Context, id int) (*domain.Sector, error) {
+func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Sector, error) {
 	query := `
 		SELECT id, name, dept_id, created_at
 		FROM sectors
@@ -62,7 +63,7 @@ func (r *postgresRepository) FindByID(ctx context.Context, id int) (*domain.Sect
 	return &sector, nil
 }
 
-func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID int) ([]domain.Sector, error) {
+func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid.UUID) ([]domain.Sector, error) {
 	query := `
 		SELECT id, name, dept_id, created_at
 		FROM sectors
@@ -105,7 +106,7 @@ func (r *postgresRepository) Create(ctx context.Context, sector *domain.Sector) 
 	return nil
 }
 
-func (r *postgresRepository) Update(ctx context.Context, id int, sector *domain.Sector) error {
+func (r *postgresRepository) Update(ctx context.Context, id uuid.UUID, sector *domain.Sector) error {
 	query := `UPDATE sectors SET name = $1, dept_id = $2 WHERE id = $3`
 
 	result, err := r.pool.Exec(ctx, query, sector.Name, sector.DeptID, id)
@@ -120,7 +121,7 @@ func (r *postgresRepository) Update(ctx context.Context, id int, sector *domain.
 	return nil
 }
 
-func (r *postgresRepository) Delete(ctx context.Context, id int) error {
+func (r *postgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM sectors WHERE id = $1`
 
 	result, err := r.pool.Exec(ctx, query, id)

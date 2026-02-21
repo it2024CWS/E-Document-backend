@@ -7,10 +7,12 @@ import (
 	"e-document-backend/internal/app/doctype"
 	"e-document-backend/internal/app/document"
 	"e-document-backend/internal/app/file"
+	"e-document-backend/internal/app/folder"
 	"e-document-backend/internal/app/incomingdoc"
 	"e-document-backend/internal/app/outgoingdoc"
 	"e-document-backend/internal/app/role"
 	"e-document-backend/internal/app/sector"
+	"e-document-backend/internal/app/upload"
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
@@ -144,7 +146,7 @@ func main() {
 	fileHandler := file.NewHandler(fileService)
 
 	// Seed admin user if it doesn't exist
-	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
+	if err := seed.SeedAdmin(ctx, userRepo, pgClient.Pool, cfg); err != nil {
 		logger.Warnf("Failed to seed admin user: %v", err)
 	}
 
@@ -187,6 +189,20 @@ func main() {
 	documentService := document.NewService(documentRepo, incomingdocRepo, outgoingdocRepo)
 	documentHandler := document.NewHandler(documentService)
 
+	// Initialize folder module
+	folderRepo := folder.NewPostgresRepository(pgClient.Pool)
+	folderService := folder.NewService(folderRepo)
+	folderHandler := folder.NewHandler(folderService)
+
+	// Initialize upload module
+	uploadRepo := upload.NewPostgresRepository(pgClient.Pool)
+	uploadService := upload.NewService(uploadRepo)
+	tusConfig := upload.LoadTusConfigFromEnv()
+	uploadHandler, err := upload.NewHandler(uploadService, tusConfig)
+	if err != nil {
+		logger.FatalWithErr("Failed to initialize upload handler", err)
+	}
+
 	// API routes
 	api := e.Group("/api")
 
@@ -221,10 +237,14 @@ func main() {
 	doctypeHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register document routes
 	documentHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register folder routes
+	folderHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register incomingdoc routes
 	incomingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register outgoingdoc routes
 	outgoingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register upload routes
+	uploadHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 
 	// Start server
 	go func() {

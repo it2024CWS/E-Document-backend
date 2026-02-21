@@ -3,8 +3,8 @@ package sector
 import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -62,9 +62,9 @@ func (h *Handler) GetAllSectors(c echo.Context) error {
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/sectors/{id} [get]
 func (h *Handler) GetSectorByID(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	sector, err := h.service.GetSectorByID(c.Request().Context(), id)
@@ -88,9 +88,9 @@ func (h *Handler) GetSectorByID(c echo.Context) error {
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/departments/{id}/sectors [get]
 func (h *Handler) GetSectorsByDepartment(c echo.Context) error {
-	deptID, err := strconv.Atoi(c.Param("id"))
+	deptID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	sectors, err := h.service.GetSectorsByDepartment(c.Request().Context(), deptID)
@@ -142,9 +142,9 @@ func (h *Handler) CreateSector(c echo.Context) error {
 //	@Failure		404		{object}	util.Response
 //	@Router			/v1/sectors/{id} [put]
 func (h *Handler) UpdateSector(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	var req domain.UpdateSectorRequest
@@ -173,9 +173,9 @@ func (h *Handler) UpdateSector(c echo.Context) error {
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/sectors/{id} [delete]
 func (h *Handler) DeleteSector(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	if err := h.service.DeleteSector(c.Request().Context(), id); err != nil {

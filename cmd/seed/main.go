@@ -38,7 +38,7 @@ func main() {
 	userRepo := user.NewPostgresRepository(pgClient.Pool)
 
 	// Seed admin user using shared seeder
-	if err := seed.SeedAdmin(ctx, userRepo, cfg); err != nil {
+	if err := seed.SeedAdmin(ctx, userRepo, pgClient.Pool, cfg); err != nil {
 		logger.FatalWithErr("Failed to seed admin user", err)
 	}
 

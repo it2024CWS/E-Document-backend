@@ -13,22 +13,22 @@ type Repository interface {
 	// Transaction management
 	BeginTx(ctx context.Context) (pgx.Tx, error)
 
-	// Folder operations (within transaction)
-	FindFolderByNameAndParent(ctx context.Context, tx pgx.Tx, name string, parentID *uuid.UUID, ownerID uuid.UUID) (*domain.Folder, error)
 	CreateFolder(ctx context.Context, tx pgx.Tx, folder *domain.Folder) error
+	FindFolderByNameAndParent(ctx context.Context, tx pgx.Tx, name string, parentID *uuid.UUID, userID string) (*domain.Folder, error)
+	CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.Document) error
 
 	// Folder operations (without transaction)
-	GetFolderByID(ctx context.Context, folderID uuid.UUID) (*domain.Folder, error)
+	GetFolderByID(ctx context.Context, folderID int) (*domain.Folder, error)
 
 	// Document operations (within transaction)
-	CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.Document) error
+	CreateVersion(ctx context.Context, tx pgx.Tx, version *domain.Version) error
 
 	// Attachment operations (within transaction)
 	CreateAttachment(ctx context.Context, tx pgx.Tx, attachment *domain.DocumentAttachment) error
-	GetLatestVersionByDocumentID(ctx context.Context, tx pgx.Tx, documentID uuid.UUID) (int, error)
-	SetPreviousVersionsNotCurrent(ctx context.Context, tx pgx.Tx, documentID uuid.UUID) error
+	GetLatestVersionByDocumentID(ctx context.Context, tx pgx.Tx, documentID int) (int, error)
+	SetPreviousVersionsNotCurrent(ctx context.Context, tx pgx.Tx, documentID int) error
 
 	// Attachment operations (without transaction)
 	GetAttachmentByID(ctx context.Context, attachmentID uuid.UUID) (*domain.DocumentAttachment, error)
-	GetAttachmentsByFolderID(ctx context.Context, folderID uuid.UUID) ([]*domain.DocumentAttachment, error)
+	GetAttachmentsByFolderID(ctx context.Context, folderID int) ([]*domain.DocumentAttachment, error)
 }

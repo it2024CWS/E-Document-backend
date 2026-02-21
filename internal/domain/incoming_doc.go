@@ -18,9 +18,9 @@ const (
 
 // IncomingDoc represents an incoming document
 type IncomingDoc struct {
-	ID           int               `json:"id" db:"id"`
+	ID           uuid.UUID         `json:"id" db:"id"`
 	IncomingNo   string            `json:"incoming_no" db:"incoming_no" validate:"required"`
-	DocID        int               `json:"doc_id" db:"doc_id" validate:"required"`
+	DocID        uuid.UUID         `json:"doc_id" db:"doc_id" validate:"required"`
 	SenderID     *uuid.UUID        `json:"sender_id" db:"sender_id"`
 	ReceiverID   *uuid.UUID        `json:"receiver_id" db:"receiver_id"`
 	ApproverID   *uuid.UUID        `json:"approver_id" db:"approver_id"`
@@ -33,7 +33,7 @@ type IncomingDoc struct {
 
 // CreateIncomingDocRequest represents the request body for creating an incoming document
 type CreateIncomingDocRequest struct {
-	DocID      int        `json:"doc_id" validate:"required"`
+	DocID      uuid.UUID  `json:"doc_id" validate:"required"`
 	SenderID   *uuid.UUID `json:"sender_id"`
 	ReceiverID *uuid.UUID `json:"receiver_id"`
 }
@@ -51,9 +51,9 @@ type ApproveIncomingDocRequest struct {
 
 // IncomingDocResponse represents the incoming document response
 type IncomingDocResponse struct {
-	ID           int               `json:"id"`
+	ID           uuid.UUID         `json:"id"`
 	IncomingNo   string            `json:"incoming_no"`
-	DocID        int               `json:"doc_id"`
+	DocID        uuid.UUID         `json:"doc_id"`
 	DocNo        string            `json:"doc_no,omitempty"`
 	DocName      string            `json:"doc_name,omitempty"`
 	SenderID     *uuid.UUID        `json:"sender_id"`

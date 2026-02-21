@@ -1,10 +1,14 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // UserRole represents a user role in the system
 type UserRole struct {
-	ID          int       `json:"id" db:"id"`
+	ID          uuid.UUID `json:"id" db:"id"`
 	RoleName    string    `json:"role_name" db:"role_name" validate:"required"`
 	Description string    `json:"description" db:"description"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -25,7 +29,7 @@ type UpdateRoleRequest struct {
 
 // RoleResponse represents the role response
 type RoleResponse struct {
-	ID          int       `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	RoleName    string    `json:"role_name"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`

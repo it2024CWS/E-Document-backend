@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -82,21 +83,21 @@ func (h *Handler) CreateUser(c echo.Context) error {
 
 	// Parse role_id
 	if roleIDStr := c.FormValue("role_id"); roleIDStr != "" {
-		if roleID, err := strconv.Atoi(roleIDStr); err == nil {
+		if roleID, err := uuid.Parse(roleIDStr); err == nil {
 			req.RoleID = &roleID
 		}
 	}
 
 	// Parse department_id
 	if deptIDStr := c.FormValue("department_id"); deptIDStr != "" {
-		if deptID, err := strconv.Atoi(deptIDStr); err == nil {
+		if deptID, err := uuid.Parse(deptIDStr); err == nil {
 			req.DepartmentID = &deptID
 		}
 	}
 
 	// Parse sector_id
 	if sectorIDStr := c.FormValue("sector_id"); sectorIDStr != "" {
-		if sectorID, err := strconv.Atoi(sectorIDStr); err == nil {
+		if sectorID, err := uuid.Parse(sectorIDStr); err == nil {
 			req.SectorID = &sectorID
 		}
 	}
@@ -273,21 +274,21 @@ func (h *Handler) UpdateUser(c echo.Context) error {
 
 	// Parse role_id if provided
 	if roleIDStr := c.FormValue("role_id"); roleIDStr != "" {
-		if roleID, err := strconv.Atoi(roleIDStr); err == nil {
+		if roleID, err := uuid.Parse(roleIDStr); err == nil {
 			req.RoleID = &roleID
 		}
 	}
 
 	// Parse department_id if provided
 	if deptIDStr := c.FormValue("department_id"); deptIDStr != "" {
-		if deptID, err := strconv.Atoi(deptIDStr); err == nil {
+		if deptID, err := uuid.Parse(deptIDStr); err == nil {
 			req.DepartmentID = &deptID
 		}
 	}
 
 	// Parse sector_id if provided
 	if sectorIDStr := c.FormValue("sector_id"); sectorIDStr != "" {
-		if sectorID, err := strconv.Atoi(sectorIDStr); err == nil {
+		if sectorID, err := uuid.Parse(sectorIDStr); err == nil {
 			req.SectorID = &sectorID
 		}
 	}
