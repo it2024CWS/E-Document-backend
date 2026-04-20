@@ -21,6 +21,11 @@ type User struct {
 	ProfilePicture string     `json:"profile_picture,omitempty" db:"profile_picture"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+
+	// Joined fields
+	RoleName       string `json:"role_name,omitempty" db:"role_name"`
+	DepartmentName string `json:"department_name,omitempty" db:"department_name"`
+	SectorName     string `json:"sector_name,omitempty" db:"sector_name"`
 }
 
 // CreateUserRequest represents the request body for creating a user
@@ -81,13 +86,16 @@ func (u *User) ToResponse() UserResponse {
 		Username:       u.Username,
 		Email:          u.Email,
 		RoleID:         u.RoleID,
+		RoleName:       u.RoleName,
 		Phone:          u.Phone,
 		Firstname:      u.Firstname,
 		Lastname:       u.Lastname,
 		Nickname:       u.Nickname,
 		ProfilePicture: u.ProfilePicture,
 		DepartmentID:   u.DepartmentID,
+		DepartmentName: u.DepartmentName,
 		SectorID:       u.SectorID,
+		SectorName:     u.SectorName,
 		IsActive:       u.IsActive,
 		CreatedAt:      u.CreatedAt,
 		UpdatedAt:      u.UpdatedAt,

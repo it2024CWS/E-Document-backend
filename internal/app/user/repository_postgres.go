@@ -71,8 +71,14 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 		SELECT 
 			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
 			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
-			u.created_at, u.updated_at
+			u.created_at, u.updated_at,
+			COALESCE(ur.role_name, '') as role_name, 
+			COALESCE(d.dept_name, '') as dept_name, 
+			COALESCE(s.name, '') as sector_name
 		FROM users u
+		LEFT JOIN user_roles ur ON u.role_id = ur.id
+		LEFT JOIN departments d ON u.department_id = d.id
+		LEFT JOIN sectors s ON u.sector_id = s.id
 		WHERE u.id = $1
 	`
 
@@ -98,6 +104,9 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.RoleName,
+		&user.DepartmentName,
+		&user.SectorName,
 	)
 
 	if err != nil {
@@ -190,14 +199,20 @@ func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*do
 	return &user, nil
 }
 
-// FindAll retrieves all users with pagination and search (excluding current user)
+// FindAll retrieves all users with pagination and search
 func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, search string, currentUserID string) ([]domain.User, error) {
 	query := `
 		SELECT 
 			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
 			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
-			u.created_at, u.updated_at
+			u.created_at, u.updated_at,
+			COALESCE(ur.role_name, '') as role_name, 
+			COALESCE(d.dept_name, '') as dept_name, 
+			COALESCE(s.name, '') as sector_name
 		FROM users u
+		LEFT JOIN user_roles ur ON u.role_id = ur.id
+		LEFT JOIN departments d ON u.department_id = d.id
+		LEFT JOIN sectors s ON u.sector_id = s.id
 		WHERE 1=1
 	`
 
@@ -206,23 +221,26 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 
 	// Add search filter
 	if search != "" {
-		query += fmt.Sprintf(" AND (u.username ILIKE $%d OR u.email ILIKE $%d)", argCount, argCount)
+		query += fmt.Sprintf(" AND (u.username ILIKE $%d OR u.email ILIKE $%d OR u.firstname ILIKE $%d OR u.lastname ILIKE $%d)", argCount, argCount, argCount, argCount)
 		args = append(args, "%"+search+"%")
 		argCount++
 	}
 
-	// Exclude current user
+	// Add ordering (show current user first if provided)
 	if currentUserID != "" {
 		userID, err := uuid.Parse(currentUserID)
 		if err == nil {
-			query += fmt.Sprintf(" AND u.id != $%d", argCount)
+			query += fmt.Sprintf(" ORDER BY (u.id = $%d) DESC, u.created_at DESC", argCount)
 			args = append(args, userID)
 			argCount++
+		} else {
+			query += " ORDER BY u.created_at DESC"
 		}
+	} else {
+		query += " ORDER BY u.created_at DESC"
 	}
 
-	// Add ordering and pagination
-	query += " ORDER BY u.created_at DESC"
+	// Add pagination
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argCount, argCount+1)
 	args = append(args, limit, skip)
 
@@ -251,6 +269,9 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 			&user.ProfilePicture,
 			&user.CreatedAt,
 			&user.UpdatedAt,
+			&user.RoleName,
+			&user.DepartmentName,
+			&user.SectorName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
@@ -265,7 +286,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, skip int, limit int, s
 	return users, nil
 }
 
-// Count returns the total number of users (excluding current user)
+// Count returns the total number of users
 func (r *postgresRepository) Count(ctx context.Context, search string, currentUserID string) (int, error) {
 	query := "SELECT COUNT(*) FROM users WHERE 1=1"
 
@@ -274,18 +295,9 @@ func (r *postgresRepository) Count(ctx context.Context, search string, currentUs
 
 	// Add search filter
 	if search != "" {
-		query += fmt.Sprintf(" AND (username ILIKE $%d OR email ILIKE $%d)", argCount, argCount)
+		query += fmt.Sprintf(" AND (username ILIKE $%d OR email ILIKE $%d OR firstname ILIKE $%d OR lastname ILIKE $%d)", argCount, argCount, argCount, argCount)
 		args = append(args, "%"+search+"%")
 		argCount++
-	}
-
-	// Exclude current user
-	if currentUserID != "" {
-		userID, err := uuid.Parse(currentUserID)
-		if err == nil {
-			query += fmt.Sprintf(" AND id != $%d", argCount)
-			args = append(args, userID)
-		}
 	}
 
 	var count int

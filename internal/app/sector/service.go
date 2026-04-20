@@ -4,17 +4,15 @@ import (
 	"context"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-
-	"github.com/google/uuid"
 )
 
 type Service interface {
-	GetAllSectors(ctx context.Context) ([]domain.SectorResponse, error)
-	GetSectorByID(ctx context.Context, id uuid.UUID) (*domain.SectorResponse, error)
-	GetSectorsByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.SectorResponse, error)
+	GetAllSectors(ctx context.Context, page, limit int, search string) ([]domain.SectorResponse, int, error)
+	GetSectorByID(ctx context.Context, id string) (*domain.SectorResponse, error)
+	GetSectorsByDepartmentID(ctx context.Context, deptID string) ([]domain.SectorResponse, error)
 	CreateSector(ctx context.Context, req domain.CreateSectorRequest) (*domain.SectorResponse, error)
-	UpdateSector(ctx context.Context, id uuid.UUID, req domain.UpdateSectorRequest) (*domain.SectorResponse, error)
-	DeleteSector(ctx context.Context, id uuid.UUID) error
+	UpdateSector(ctx context.Context, id string, req domain.UpdateSectorRequest) (*domain.SectorResponse, error)
+	DeleteSector(ctx context.Context, id string) error
 }
 
 type service struct {
@@ -25,10 +23,17 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetAllSectors(ctx context.Context) ([]domain.SectorResponse, error) {
-	sectors, err := s.repo.FindAll(ctx)
+func (s *service) GetAllSectors(ctx context.Context, page, limit int, search string) ([]domain.SectorResponse, int, error) {
+	offset := (page - 1) * limit
+
+	total, err := s.repo.Count(ctx, search)
 	if err != nil {
-		return nil, util.NewDatabaseError("get all sectors", err)
+		return nil, 0, util.NewDatabaseError("count sectors", err)
+	}
+
+	sectors, err := s.repo.FindAll(ctx, limit, offset, search)
+	if err != nil {
+		return nil, 0, util.NewDatabaseError("get all sectors", err)
 	}
 
 	responses := make([]domain.SectorResponse, len(sectors))
@@ -36,20 +41,20 @@ func (s *service) GetAllSectors(ctx context.Context) ([]domain.SectorResponse, e
 		responses[i] = sector.ToResponse()
 	}
 
-	return responses, nil
+	return responses, total, nil
 }
 
-func (s *service) GetSectorByID(ctx context.Context, id uuid.UUID) (*domain.SectorResponse, error) {
+func (s *service) GetSectorByID(ctx context.Context, id string) (*domain.SectorResponse, error) {
 	sector, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Sector", id.String())
+		return nil, util.NewNotFoundError("Sector", id)
 	}
 
 	response := sector.ToResponse()
 	return &response, nil
 }
 
-func (s *service) GetSectorsByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.SectorResponse, error) {
+func (s *service) GetSectorsByDepartmentID(ctx context.Context, deptID string) ([]domain.SectorResponse, error) {
 	sectors, err := s.repo.FindByDepartmentID(ctx, deptID)
 	if err != nil {
 		return nil, util.NewDatabaseError("get sectors by department", err)
@@ -77,18 +82,18 @@ func (s *service) CreateSector(ctx context.Context, req domain.CreateSectorReque
 		return nil, util.NewDatabaseError("create sector", err)
 	}
 
-	response := sector.ToResponse()
-	return &response, nil
+	// Fetch with joined info
+	return s.GetSectorByID(ctx, sector.ID.String())
 }
 
-func (s *service) UpdateSector(ctx context.Context, id uuid.UUID, req domain.UpdateSectorRequest) (*domain.SectorResponse, error) {
+func (s *service) UpdateSector(ctx context.Context, id string, req domain.UpdateSectorRequest) (*domain.SectorResponse, error) {
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
 	existingSector, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Sector", id.String())
+		return nil, util.NewNotFoundError("Sector", id)
 	}
 
 	if req.Name != "" {
@@ -102,18 +107,12 @@ func (s *service) UpdateSector(ctx context.Context, id uuid.UUID, req domain.Upd
 		return nil, util.NewDatabaseError("update sector", err)
 	}
 
-	updatedSector, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, util.NewDatabaseError("get updated sector", err)
-	}
-
-	response := updatedSector.ToResponse()
-	return &response, nil
+	return s.GetSectorByID(ctx, id)
 }
 
-func (s *service) DeleteSector(ctx context.Context, id uuid.UUID) error {
+func (s *service) DeleteSector(ctx context.Context, id string) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return util.NewNotFoundError("Sector", id.String())
+		return util.NewNotFoundError("Sector", id)
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {

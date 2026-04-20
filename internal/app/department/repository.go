@@ -7,9 +7,10 @@ import (
 
 // Repository defines the interface for department data access
 type Repository interface {
-	FindAll(ctx context.Context) ([]domain.Department, error)
-	FindByID(ctx context.Context, id int) (*domain.Department, error)
+	FindAll(ctx context.Context, limit, offset int, search string) ([]domain.Department, error)
+	Count(ctx context.Context, search string) (int, error)
+	FindByID(ctx context.Context, id string) (*domain.Department, error)
 	Create(ctx context.Context, dept *domain.Department) error
-	Update(ctx context.Context, id int, dept *domain.Department) error
-	Delete(ctx context.Context, id int) error
+	Update(ctx context.Context, id string, dept *domain.Department) error
+	Delete(ctx context.Context, id string) error
 }

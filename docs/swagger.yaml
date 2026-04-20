@@ -683,7 +683,20 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get list of all departments
+      description: Get all departments with pagination and search
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by department name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -697,16 +710,22 @@ paths:
                   items:
                     $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
                   type: array
+                pagination:
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
               type: object
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Get all departments
       tags:
-      - Departments
+      - departments
     post:
       consumes:
       - application/json
@@ -743,13 +762,13 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a department
+      description: Delete a department by its ID
       parameters:
       - description: Department ID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -757,25 +776,33 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Delete department
       tags:
-      - Departments
+      - departments
     get:
       consumes:
       - application/json
-      description: Get detailed information of a specific department
+      description: Get a single department by its ID
       parameters:
       - description: Department ID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -788,26 +815,34 @@ paths:
                 data:
                   $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Get department by ID
       tags:
-      - Departments
+      - departments
     put:
       consumes:
       - application/json
-      description: Update department information
+      description: Update a department by its ID
       parameters:
       - description: Department ID
         in: path
         name: id
         required: true
-        type: integer
-      - description: Department data
+        type: string
+      - description: Update department data
         in: body
         name: request
         required: true
@@ -829,49 +864,23 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Update department
       tags:
-      - Departments
-  /v1/departments/{id}/sectors:
-    get:
-      consumes:
-      - application/json
-      description: Get all sectors belonging to a department
-      parameters:
-      - description: Department ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/e-document-backend_internal_util.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
-                  type: array
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-      security:
-      - BearerAuth: []
-      summary: Get sectors by department
-      tags:
-      - Departments
+      - departments
   /v1/doctypes:
     get:
       consumes:
@@ -1863,7 +1872,22 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get list of all user roles
+      description: Get list of all user roles with pagination and search
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by role name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -1874,9 +1898,7 @@ paths:
             - $ref: '#/definitions/e-document-backend_internal_util.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/e-document-backend_internal_domain.RoleResponse'
-                  type: array
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
               type: object
         "401":
           description: Unauthorized
@@ -1967,7 +1989,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -2042,7 +2064,20 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get list of all sectors
+      description: Get all sectors with pagination and search
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by sector name
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -2056,16 +2091,22 @@ paths:
                   items:
                     $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
                   type: array
+                pagination:
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
               type: object
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Get all sectors
       tags:
-      - Sectors
+      - sectors
     post:
       consumes:
       - application/json
@@ -2102,13 +2143,13 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete a sector
+      description: Delete a sector by its ID
       parameters:
       - description: Sector ID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -2116,25 +2157,33 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Delete sector
       tags:
-      - Sectors
+      - sectors
     get:
       consumes:
       - application/json
-      description: Get detailed information of a specific sector
+      description: Get a single sector by its ID
       parameters:
       - description: Sector ID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -2147,26 +2196,34 @@ paths:
                 data:
                   $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Get sector by ID
       tags:
-      - Sectors
+      - sectors
     put:
       consumes:
       - application/json
-      description: Update sector information
+      description: Update a sector by its ID
       parameters:
       - description: Sector ID
         in: path
         name: id
         required: true
-        type: integer
-      - description: Sector data
+        type: string
+      - description: Update sector data
         in: body
         name: request
         required: true
@@ -2188,15 +2245,65 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Update sector
       tags:
-      - Sectors
+      - sectors
+  /v1/sectors/department/{deptId}:
+    get:
+      consumes:
+      - application/json
+      description: Get all sectors belonging to a specific department
+      parameters:
+      - description: Department ID
+        in: path
+        name: deptId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sectors by department ID
+      tags:
+      - sectors
   /v1/upload/download/{id}:
     get:
       description: Downloads a file by attachment ID with original filename

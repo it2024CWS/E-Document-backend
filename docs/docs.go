@@ -233,7 +233,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get list of all departments",
+                "description": "Get all departments with pagination and search",
                 "consumes": [
                     "application/json"
                 ],
@@ -241,9 +241,29 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Departments"
+                    "departments"
                 ],
                 "summary": "Get all departments",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by department name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -260,6 +280,9 @@ const docTemplate = `{
                                             "items": {
                                                 "$ref": "#/definitions/e-document-backend_internal_domain.DepartmentResponse"
                                             }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginationInfo"
                                         }
                                     }
                                 }
@@ -268,6 +291,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -337,7 +366,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get detailed information of a specific department",
+                "description": "Get a single department by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -345,12 +374,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Departments"
+                    "departments"
                 ],
                 "summary": "Get department by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Department ID",
                         "name": "id",
                         "in": "path",
@@ -376,8 +405,20 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -390,7 +431,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update department information",
+                "description": "Update a department by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -398,19 +439,19 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Departments"
+                    "departments"
                 ],
                 "summary": "Update department",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Department ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Department data",
+                        "description": "Update department data",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -444,8 +485,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -458,7 +511,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a department",
+                "description": "Delete a department by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -466,12 +519,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Departments"
+                    "departments"
                 ],
                 "summary": "Delete department",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Department ID",
                         "name": "id",
                         "in": "path",
@@ -485,66 +538,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
-                    }
-                }
-            }
-        },
-        "/v1/departments/{id}/sectors": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get all sectors belonging to a department",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Departments"
-                ],
-                "summary": "Get sectors by department",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Department ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/e-document-backend_internal_domain.SectorResponse"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -2222,7 +2229,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get list of all user roles",
+                "description": "Get list of all user roles with pagination and search",
                 "consumes": [
                     "application/json"
                 ],
@@ -2233,6 +2240,28 @@ const docTemplate = `{
                     "Roles"
                 ],
                 "summary": "Get all user roles",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by role name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2245,10 +2274,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/e-document-backend_internal_domain.RoleResponse"
-                                            }
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginatedData"
                                         }
                                     }
                                 }
@@ -2351,7 +2377,7 @@ const docTemplate = `{
                 "summary": "Get role by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Role ID",
                         "name": "id",
                         "in": "path",
@@ -2520,7 +2546,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get list of all sectors",
+                "description": "Get all sectors with pagination and search",
                 "consumes": [
                     "application/json"
                 ],
@@ -2528,9 +2554,29 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Sectors"
+                    "sectors"
                 ],
                 "summary": "Get all sectors",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by sector name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2547,6 +2593,9 @@ const docTemplate = `{
                                             "items": {
                                                 "$ref": "#/definitions/e-document-backend_internal_domain.SectorResponse"
                                             }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginationInfo"
                                         }
                                     }
                                 }
@@ -2555,6 +2604,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -2617,14 +2672,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/sectors/{id}": {
+        "/v1/sectors/department/{deptId}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get detailed information of a specific sector",
+                "description": "Get all sectors belonging to a specific department",
                 "consumes": [
                     "application/json"
                 ],
@@ -2632,12 +2687,82 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Sectors"
+                    "sectors"
+                ],
+                "summary": "Get sectors by department ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Department ID",
+                        "name": "deptId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/e-document-backend_internal_domain.SectorResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sectors/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a single sector by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sectors"
                 ],
                 "summary": "Get sector by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Sector ID",
                         "name": "id",
                         "in": "path",
@@ -2663,8 +2788,20 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -2677,7 +2814,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update sector information",
+                "description": "Update a sector by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -2685,19 +2822,19 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Sectors"
+                    "sectors"
                 ],
                 "summary": "Update sector",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Sector ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Sector data",
+                        "description": "Update sector data",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2731,8 +2868,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -2745,7 +2894,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a sector",
+                "description": "Delete a sector by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -2753,12 +2902,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Sectors"
+                    "sectors"
                 ],
                 "summary": "Delete sector",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Sector ID",
                         "name": "id",
                         "in": "path",
@@ -2772,8 +2921,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }

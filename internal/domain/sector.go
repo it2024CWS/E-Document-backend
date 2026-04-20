@@ -13,6 +13,9 @@ type Sector struct {
 	DeptID    uuid.UUID `json:"dept_id" db:"dept_id" validate:"required"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+
+	// Joined fields
+	DeptName string `json:"dept_name,omitempty" db:"dept_name"`
 }
 
 // CreateSectorRequest represents the request body for creating a sector
@@ -43,6 +46,7 @@ func (s *Sector) ToResponse() SectorResponse {
 		ID:        s.ID,
 		Name:      s.Name,
 		DeptID:    s.DeptID,
+		DeptName:  s.DeptName,
 		CreatedAt: s.CreatedAt,
 		UpdatedAt: s.UpdatedAt,
 	}

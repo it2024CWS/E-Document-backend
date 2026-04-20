@@ -5,15 +5,16 @@ import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"fmt"
+	"sync"
 )
 
 // Service defines the interface for role business logic
 type Service interface {
-	GetAllRoles(ctx context.Context) ([]domain.RoleResponse, error)
-	GetRoleByID(ctx context.Context, id int) (*domain.RoleResponse, error)
+	GetAllRoles(ctx context.Context, page, limit int, search string) ([]domain.RoleResponse, int, error)
+	GetRoleByID(ctx context.Context, id string) (*domain.RoleResponse, error)
 	CreateRole(ctx context.Context, req domain.CreateRoleRequest) (*domain.RoleResponse, error)
-	UpdateRole(ctx context.Context, id int, req domain.UpdateRoleRequest) (*domain.RoleResponse, error)
-	DeleteRole(ctx context.Context, id int) error
+	UpdateRole(ctx context.Context, id string, req domain.UpdateRoleRequest) (*domain.RoleResponse, error)
+	DeleteRole(ctx context.Context, id string) error
 }
 
 type service struct {
@@ -27,11 +28,35 @@ func NewService(repo Repository) Service {
 	}
 }
 
-// GetAllRoles retrieves all roles
-func (s *service) GetAllRoles(ctx context.Context) ([]domain.RoleResponse, error) {
-	roles, err := s.repo.FindAll(ctx)
-	if err != nil {
-		return nil, util.NewDatabaseError("get all roles", err)
+// GetAllRoles retrieves all roles with pagination and search
+func (s *service) GetAllRoles(ctx context.Context, page, limit int, search string) ([]domain.RoleResponse, int, error) {
+	offset := (page - 1) * limit
+
+	var wg sync.WaitGroup
+	var total int
+	var roles []domain.UserRole
+	var countErr, findErr error
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		total, countErr = s.repo.Count(ctx, search)
+	}()
+
+	go func() {
+		defer wg.Done()
+		roles, findErr = s.repo.FindAll(ctx, limit, offset, search)
+	}()
+
+	wg.Wait()
+
+	if countErr != nil {
+		return nil, 0, util.NewDatabaseError("count roles", countErr)
+	}
+
+	if findErr != nil {
+		return nil, 0, util.NewDatabaseError("get all roles", findErr)
 	}
 
 	responses := make([]domain.RoleResponse, len(roles))
@@ -39,14 +64,14 @@ func (s *service) GetAllRoles(ctx context.Context) ([]domain.RoleResponse, error
 		responses[i] = role.ToResponse()
 	}
 
-	return responses, nil
+	return responses, total, nil
 }
 
 // GetRoleByID retrieves a role by ID
-func (s *service) GetRoleByID(ctx context.Context, id int) (*domain.RoleResponse, error) {
+func (s *service) GetRoleByID(ctx context.Context, id string) (*domain.RoleResponse, error) {
 	role, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Role", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Role", fmt.Sprintf("%s", id))
 	}
 
 	response := role.ToResponse()
@@ -75,7 +100,7 @@ func (s *service) CreateRole(ctx context.Context, req domain.CreateRoleRequest) 
 }
 
 // UpdateRole updates a role
-func (s *service) UpdateRole(ctx context.Context, id int, req domain.UpdateRoleRequest) (*domain.RoleResponse, error) {
+func (s *service) UpdateRole(ctx context.Context, id string, req domain.UpdateRoleRequest) (*domain.RoleResponse, error) {
 	// Validate request
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
@@ -108,11 +133,11 @@ func (s *service) UpdateRole(ctx context.Context, id int, req domain.UpdateRoleR
 }
 
 // DeleteRole deletes a role
-func (s *service) DeleteRole(ctx context.Context, id int) error {
+func (s *service) DeleteRole(ctx context.Context, id string) error {
 	// Check if role exists
 	_, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return util.NewNotFoundError("Role", fmt.Sprintf("%d", id))
+		return util.NewNotFoundError("Role", fmt.Sprintf("%s", id))
 	}
 
 	// Delete from database

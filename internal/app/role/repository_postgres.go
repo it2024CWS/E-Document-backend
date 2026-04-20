@@ -21,15 +21,17 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 	}
 }
 
-// FindAll retrieves all user roles
-func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.UserRole, error) {
+// FindAll retrieves all user roles with pagination and search
+func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, search string) ([]domain.UserRole, error) {
 	query := `
 		SELECT id, role_name, created_at
 		FROM user_roles
-		ORDER BY id ASC
+		WHERE role_name ILIKE $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, "%"+search+"%", limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find roles: %w", err)
 	}
@@ -56,8 +58,25 @@ func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.UserRole, er
 	return roles, nil
 }
 
+// Count returns the total number of roles matching the search criteria
+func (r *postgresRepository) Count(ctx context.Context, search string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM user_roles
+		WHERE role_name ILIKE $1
+	`
+
+	var count int
+	err := r.pool.QueryRow(ctx, query, "%"+search+"%").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count roles: %w", err)
+	}
+
+	return count, nil
+}
+
 // FindByID retrieves a role by ID
-func (r *postgresRepository) FindByID(ctx context.Context, id int) (*domain.UserRole, error) {
+func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.UserRole, error) {
 	query := `
 		SELECT id, role_name, created_at
 		FROM user_roles
@@ -104,7 +123,7 @@ func (r *postgresRepository) Create(ctx context.Context, role *domain.UserRole) 
 }
 
 // Update updates a role by ID
-func (r *postgresRepository) Update(ctx context.Context, id int, role *domain.UserRole) error {
+func (r *postgresRepository) Update(ctx context.Context, id string, role *domain.UserRole) error {
 	query := `
 		UPDATE user_roles
 		SET role_name = $1
@@ -124,7 +143,7 @@ func (r *postgresRepository) Update(ctx context.Context, id int, role *domain.Us
 }
 
 // Delete deletes a role by ID
-func (r *postgresRepository) Delete(ctx context.Context, id int) error {
+func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 	query := "DELETE FROM user_roles WHERE id = $1"
 
 	result, err := r.pool.Exec(ctx, query, id)

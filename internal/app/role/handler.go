@@ -5,6 +5,7 @@ import (
 	"e-document-backend/internal/util"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -33,22 +34,61 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 // GetAllRoles godoc
 //
 //	@Summary		Get all user roles
-//	@Description	Get list of all user roles
+//	@Description	Get list of all user roles with pagination and search
 //	@Tags			Roles
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Success		200	{object}	util.Response{data=[]domain.RoleResponse}
-//	@Failure		401	{object}	util.Response
-//	@Failure		500	{object}	util.Response
+//	@Param			page	query		int		false	"Page number"	default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search by role name"
+//	@Success		200		{object}	util.Response{data=util.PaginatedData}
+//	@Failure		401		{object}	util.Response
+//	@Failure		500		{object}	util.Response
 //	@Router			/v1/roles [get]
 func (h *Handler) GetAllRoles(c echo.Context) error {
-	roles, err := h.service.GetAllRoles(c.Request().Context())
+	// Get pagination params from query
+	page := c.QueryParam("page")
+	limit := c.QueryParam("limit")
+	search := c.QueryParam("search")
+
+	// Default values
+	pageNum := 1
+	limitNum := 10
+
+	// Parse page
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p > 0 {
+			pageNum = p
+		}
+	}
+
+	// Parse limit
+	if limit != "" {
+		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
+			limitNum = l
+		}
+	}
+
+	roles, total, err := h.service.GetAllRoles(c.Request().Context(), pageNum, limitNum, search)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
 
-	return util.OKResponse(c, "Roles retrieved successfully", roles)
+	// Calculate pagination info
+	totalPages := 0
+	if total > 0 {
+		totalPages = (total + limitNum - 1) / limitNum
+	}
+
+	pagination := util.PaginationInfo{
+		CurrentPage:  pageNum,
+		TotalPages:   totalPages,
+		TotalItems:   total,
+		ItemsPerPage: limitNum,
+	}
+
+	return util.OKResponseWithPagination(c, "Roles retrieved successfully", roles, pagination)
 }
 
 // GetRoleByID godoc
@@ -59,15 +99,15 @@ func (h *Handler) GetAllRoles(c echo.Context) error {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"Role ID"
+//	@Param			id	path		string	true	"Role ID"
 //	@Success		200	{object}	util.Response{data=domain.RoleResponse}
 //	@Failure		401	{object}	util.Response
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/roles/{id} [get]
 func (h *Handler) GetRoleByID(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid uuid"))
 	}
 
 	role, err := h.service.GetRoleByID(c.Request().Context(), id)
@@ -121,9 +161,9 @@ func (h *Handler) CreateRole(c echo.Context) error {
 //	@Failure		404		{object}	util.Response
 //	@Router			/v1/roles/{id} [put]
 func (h *Handler) UpdateRole(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid uuid"))
 	}
 
 	var req domain.UpdateRoleRequest
@@ -153,9 +193,9 @@ func (h *Handler) UpdateRole(c echo.Context) error {
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/roles/{id} [delete]
 func (h *Handler) DeleteRole(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid uuid"))
 	}
 
 	if err := h.service.DeleteRole(c.Request().Context(), id); err != nil {

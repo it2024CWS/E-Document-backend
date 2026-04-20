@@ -4,15 +4,14 @@ import (
 	"context"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-	"fmt"
 )
 
 type Service interface {
-	GetAllDepartments(ctx context.Context) ([]domain.DepartmentResponse, error)
-	GetDepartmentByID(ctx context.Context, id int) (*domain.DepartmentResponse, error)
+	GetAllDepartments(ctx context.Context, page, limit int, search string) ([]domain.DepartmentResponse, int, error)
+	GetDepartmentByID(ctx context.Context, id string) (*domain.DepartmentResponse, error)
 	CreateDepartment(ctx context.Context, req domain.CreateDepartmentRequest) (*domain.DepartmentResponse, error)
-	UpdateDepartment(ctx context.Context, id int, req domain.UpdateDepartmentRequest) (*domain.DepartmentResponse, error)
-	DeleteDepartment(ctx context.Context, id int) error
+	UpdateDepartment(ctx context.Context, id string, req domain.UpdateDepartmentRequest) (*domain.DepartmentResponse, error)
+	DeleteDepartment(ctx context.Context, id string) error
 }
 
 type service struct {
@@ -23,10 +22,17 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetAllDepartments(ctx context.Context) ([]domain.DepartmentResponse, error) {
-	departments, err := s.repo.FindAll(ctx)
+func (s *service) GetAllDepartments(ctx context.Context, page, limit int, search string) ([]domain.DepartmentResponse, int, error) {
+	offset := (page - 1) * limit
+
+	total, err := s.repo.Count(ctx, search)
 	if err != nil {
-		return nil, util.NewDatabaseError("get all departments", err)
+		return nil, 0, util.NewDatabaseError("count departments", err)
+	}
+
+	departments, err := s.repo.FindAll(ctx, limit, offset, search)
+	if err != nil {
+		return nil, 0, util.NewDatabaseError("get all departments", err)
 	}
 
 	responses := make([]domain.DepartmentResponse, len(departments))
@@ -34,13 +40,13 @@ func (s *service) GetAllDepartments(ctx context.Context) ([]domain.DepartmentRes
 		responses[i] = dept.ToResponse()
 	}
 
-	return responses, nil
+	return responses, total, nil
 }
 
-func (s *service) GetDepartmentByID(ctx context.Context, id int) (*domain.DepartmentResponse, error) {
+func (s *service) GetDepartmentByID(ctx context.Context, id string) (*domain.DepartmentResponse, error) {
 	dept, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Department", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Department", id)
 	}
 
 	response := dept.ToResponse()
@@ -52,7 +58,10 @@ func (s *service) CreateDepartment(ctx context.Context, req domain.CreateDepartm
 		return nil, err
 	}
 
-	dept := &domain.Department{DeptName: req.DeptName}
+	dept := &domain.Department{
+		DeptName:    req.DeptName,
+		Description: req.Description,
+	}
 
 	if err := s.repo.Create(ctx, dept); err != nil {
 		return nil, util.NewDatabaseError("create department", err)
@@ -62,18 +71,21 @@ func (s *service) CreateDepartment(ctx context.Context, req domain.CreateDepartm
 	return &response, nil
 }
 
-func (s *service) UpdateDepartment(ctx context.Context, id int, req domain.UpdateDepartmentRequest) (*domain.DepartmentResponse, error) {
+func (s *service) UpdateDepartment(ctx context.Context, id string, req domain.UpdateDepartmentRequest) (*domain.DepartmentResponse, error) {
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
 	existingDept, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Department", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Department", id)
 	}
 
 	if req.DeptName != "" {
 		existingDept.DeptName = req.DeptName
+	}
+	if req.Description != "" {
+		existingDept.Description = req.Description
 	}
 
 	if err := s.repo.Update(ctx, id, existingDept); err != nil {
@@ -89,9 +101,9 @@ func (s *service) UpdateDepartment(ctx context.Context, id int, req domain.Updat
 	return &response, nil
 }
 
-func (s *service) DeleteDepartment(ctx context.Context, id int) error {
+func (s *service) DeleteDepartment(ctx context.Context, id string) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return util.NewNotFoundError("Department", fmt.Sprintf("%d", id))
+		return util.NewNotFoundError("Department", id)
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {
