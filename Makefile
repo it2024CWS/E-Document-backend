@@ -14,6 +14,8 @@ help:
 	@echo "  make migrate-status  - Show migration status"
 	@echo "  make install-air     - Install Air for hot reload"
 	@echo "  make air             - Run with Air hot reload"
+	@echo "  make swagger         - Generate Swagger documentation"
+	
 
 # Run in development mode
 dev:

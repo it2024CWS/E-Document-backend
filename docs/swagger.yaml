@@ -1,5 +1,13 @@
 basePath: /api
 definitions:
+  e-document-backend_internal_domain.ApproveIncomingDocRequest:
+    properties:
+      approved:
+        description: true = approved, false = rejected
+        type: boolean
+      remark:
+        type: string
+    type: object
   e-document-backend_internal_domain.AuthResponse:
     properties:
       accessToken:
@@ -11,6 +19,249 @@ definitions:
       user:
         $ref: '#/definitions/e-document-backend_internal_domain.UserResponse'
     type: object
+  e-document-backend_internal_domain.CreateDepartmentRequest:
+    properties:
+      dept_name:
+        type: string
+      description:
+        type: string
+    required:
+    - dept_name
+    type: object
+  e-document-backend_internal_domain.CreateDocTypeRequest:
+    properties:
+      description:
+        type: string
+      type_name:
+        type: string
+    required:
+    - type_name
+    type: object
+  e-document-backend_internal_domain.CreateDocumentRequest:
+    properties:
+      department_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      doc_name:
+        description: Added form tag
+        type: string
+      doc_path:
+        description: Not from form directly, set by handler
+        type: string
+      doc_type_id:
+        type: string
+      folder_id:
+        type: string
+      send_to_director:
+        type: boolean
+    required:
+    - doc_name
+    type: object
+  e-document-backend_internal_domain.CreateFolderRequest:
+    properties:
+      folder_name:
+        type: string
+      folder_path:
+        type: string
+      parent_folder_id:
+        type: string
+    required:
+    - folder_name
+    - folder_path
+    type: object
+  e-document-backend_internal_domain.CreateOutgoingDocRequest:
+    properties:
+      doc_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - doc_id
+    type: object
+  e-document-backend_internal_domain.CreateRoleRequest:
+    properties:
+      description:
+        type: string
+      role_name:
+        type: string
+    required:
+    - role_name
+    type: object
+  e-document-backend_internal_domain.CreateSectorRequest:
+    properties:
+      dept_id:
+        type: string
+      name:
+        type: string
+    required:
+    - dept_id
+    - name
+    type: object
+  e-document-backend_internal_domain.DepartmentApprovalStatus:
+    properties:
+      approved:
+        type: boolean
+      approved_date:
+        type: string
+      department_id:
+        type: string
+      department_name:
+        type: string
+      received:
+        type: boolean
+      received_date:
+        type: string
+    type: object
+  e-document-backend_internal_domain.DepartmentResponse:
+    properties:
+      created_at:
+        type: string
+      dept_name:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  e-document-backend_internal_domain.DocTypeResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      type_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  e-document-backend_internal_domain.DocumentResponse:
+    properties:
+      approval_status:
+        items:
+          $ref: '#/definitions/e-document-backend_internal_domain.DepartmentApprovalStatus'
+        type: array
+      created_at:
+        type: string
+      department_name:
+        type: string
+      description:
+        type: string
+      doc_name:
+        type: string
+      doc_no:
+        type: string
+      doc_path:
+        type: string
+      doc_type_id:
+        type: string
+      doc_type_name:
+        type: string
+      folder_id:
+        type: string
+      folder_name:
+        type: string
+      id:
+        type: string
+      registrant_email:
+        type: string
+      registrant_id:
+        type: string
+      registrant_name:
+        type: string
+      sector_name:
+        type: string
+      send_to_director:
+        type: boolean
+      status:
+        $ref: '#/definitions/e-document-backend_internal_domain.DocumentStatus'
+      type:
+        type: string
+      updated_at:
+        type: string
+      version_number:
+        type: integer
+    type: object
+  e-document-backend_internal_domain.DocumentStatus:
+    enum:
+    - none
+    - pending
+    - waiting_approval
+    - approved
+    type: string
+    x-enum-varnames:
+    - StatusNone
+    - StatusPending
+    - StatusWaitingApproval
+    - StatusApproved
+  e-document-backend_internal_domain.FolderResponse:
+    properties:
+      created_at:
+        type: string
+      folder_name:
+        type: string
+      folder_path:
+        type: string
+      id:
+        type: string
+      parent_folder_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  e-document-backend_internal_domain.IncomingDocResponse:
+    properties:
+      approver_date:
+        type: string
+      approver_id:
+        type: string
+      approver_name:
+        type: string
+      created_at:
+        type: string
+      doc_id:
+        type: string
+      doc_name:
+        type: string
+      doc_no:
+        type: string
+      id:
+        type: string
+      incoming_no:
+        type: string
+      received_date:
+        type: string
+      receiver_id:
+        type: string
+      receiver_name:
+        type: string
+      remark:
+        type: string
+      sender_id:
+        type: string
+      sender_name:
+        type: string
+      status:
+        $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocStatus'
+    type: object
+  e-document-backend_internal_domain.IncomingDocStatus:
+    enum:
+    - pending
+    - received
+    - approved
+    - rejected
+    type: string
+    x-enum-varnames:
+    - IncomingStatusPending
+    - IncomingStatusReceived
+    - IncomingStatusApproved
+    - IncomingStatusRejected
   e-document-backend_internal_domain.LoginRequest:
     properties:
       password:
@@ -21,6 +272,30 @@ definitions:
     - password
     - usernameOrEmail
     type: object
+  e-document-backend_internal_domain.OutgoingDocResponse:
+    properties:
+      created_at:
+        type: string
+      doc_id:
+        type: string
+      doc_name:
+        type: string
+      doc_no:
+        type: string
+      id:
+        type: string
+      outgoing_no:
+        type: string
+      user_id:
+        type: string
+      user_name:
+        type: string
+    type: object
+  e-document-backend_internal_domain.ReceiveIncomingDocRequest:
+    properties:
+      remark:
+        type: string
+    type: object
   e-document-backend_internal_domain.RefreshTokenRequest:
     properties:
       refreshToken:
@@ -28,45 +303,148 @@ definitions:
     required:
     - refreshToken
     type: object
+  e-document-backend_internal_domain.RoleResponse:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      role_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  e-document-backend_internal_domain.SectorResponse:
+    properties:
+      created_at:
+        type: string
+      dept_id:
+        type: string
+      dept_name:
+        description: Joined from departments table
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  e-document-backend_internal_domain.SendDocumentRequest:
+    properties:
+      receiver_id:
+        description: Can be User UUID or Department ID (if implementing logic for
+          that)
+        type: string
+      receiver_type:
+        description: '"user" or "department"'
+        type: string
+      remark:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UpdateDepartmentRequest:
+    properties:
+      dept_name:
+        type: string
+      description:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UpdateDocTypeRequest:
+    properties:
+      description:
+        type: string
+      type_name:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UpdateDocumentRequest:
+    properties:
+      department_ids:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      doc_name:
+        type: string
+      doc_path:
+        description: Not from form directly, set by handler
+        type: string
+      doc_type_id:
+        type: string
+      folder_id:
+        type: string
+      send_to_director:
+        type: boolean
+    type: object
+  e-document-backend_internal_domain.UpdateRoleRequest:
+    properties:
+      description:
+        type: string
+      role_name:
+        type: string
+    type: object
+  e-document-backend_internal_domain.UpdateSectorRequest:
+    properties:
+      dept_id:
+        type: string
+      name:
+        type: string
+    type: object
   e-document-backend_internal_domain.UserResponse:
     properties:
       created_at:
         type: string
       department_id:
         type: string
+      department_name:
+        description: Joined from departments table
+        type: string
       email:
         type: string
-      first_name:
+      firstname:
         type: string
       id:
         type: string
-      last_name:
+      is_active:
+        type: boolean
+      lastname:
+        type: string
+      nickname:
         type: string
       phone:
         type: string
       profile_picture:
         type: string
-      role:
-        $ref: '#/definitions/e-document-backend_internal_domain.UserRole'
+      role_id:
+        type: string
+      role_name:
+        description: Joined from user_roles table
+        type: string
       sector_id:
+        type: string
+      sector_name:
+        description: Joined from sectors table
         type: string
       updated_at:
         type: string
       username:
         type: string
     type: object
-  e-document-backend_internal_domain.UserRole:
-    enum:
-    - Director
-    - DepartmentManager
-    - SectorManager
-    - Employee
-    type: string
-    x-enum-varnames:
-    - RoleDirector
-    - RoleDepartmentManager
-    - RoleSectorManager
-    - RoleEmployee
+  e-document-backend_internal_domain.VersionResponse:
+    properties:
+      created_at:
+        type: string
+      doc_id:
+        type: string
+      doc_path:
+        type: string
+      id:
+        type: string
+      version_number:
+        type: integer
+    type: object
   e-document-backend_internal_util.ErrorCode:
     enum:
     - UNAUTHORIZED
@@ -108,8 +486,6 @@ definitions:
   e-document-backend_internal_util.PaginatedData:
     properties:
       items: {}
-      pagination:
-        $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
     type: object
   e-document-backend_internal_util.PaginationInfo:
     properties:
@@ -129,6 +505,8 @@ definitions:
         $ref: '#/definitions/e-document-backend_internal_util.ErrorCode'
       message:
         type: string
+      pagination:
+        $ref: '#/definitions/e-document-backend_internal_util.PaginationInfo'
       success:
         type: boolean
     type: object
@@ -161,7 +539,7 @@ definitions:
         example: /api/v1/upload/files
         type: string
     type: object
-host: localhost:5000
+host: localhost:5001
 info:
   contact:
     email: support@edocument.com
@@ -301,6 +679,654 @@ paths:
       summary: Refresh access token
       tags:
       - Auth
+  /v1/departments:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all departments
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all departments
+      tags:
+      - Departments
+    post:
+      consumes:
+      - application/json
+      description: Create a new department
+      parameters:
+      - description: Department data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new department
+      tags:
+      - Departments
+  /v1/departments/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a department
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete department
+      tags:
+      - Departments
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a specific department
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get department by ID
+      tags:
+      - Departments
+    put:
+      consumes:
+      - application/json
+      description: Update department information
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Department data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DepartmentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Update department
+      tags:
+      - Departments
+  /v1/departments/{id}/sectors:
+    get:
+      consumes:
+      - application/json
+      description: Get all sectors belonging to a department
+      parameters:
+      - description: Department ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sectors by department
+      tags:
+      - Departments
+  /v1/doctypes:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all document types
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all document types
+      tags:
+      - DocTypes
+    post:
+      consumes:
+      - application/json
+      description: Create a new document type
+      parameters:
+      - description: DocType data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateDocTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new document type
+      tags:
+      - DocTypes
+  /v1/doctypes/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a document type
+      parameters:
+      - description: DocType ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete document type
+      tags:
+      - DocTypes
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a specific document type
+      parameters:
+      - description: DocType ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get document type by ID
+      tags:
+      - DocTypes
+    put:
+      consumes:
+      - application/json
+      description: Update document type information
+      parameters:
+      - description: DocType ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: DocType data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateDocTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Update document type
+      tags:
+      - DocTypes
+  /v1/documents:
+    get:
+      consumes:
+      - application/json
+      description: Get all documents for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all documents
+      tags:
+      - documents
+    post:
+      consumes:
+      - application/json
+      description: Create a new document
+      parameters:
+      - description: Document data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create document
+      tags:
+      - documents
+  /v1/documents/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete document by ID
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete document
+      tags:
+      - documents
+    get:
+      consumes:
+      - application/json
+      description: Get document details by ID
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get document by ID
+      tags:
+      - documents
+    put:
+      consumes:
+      - application/json
+      description: Update document details
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Document data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Update document
+      tags:
+      - documents
+  /v1/documents/{id}/send:
+    post:
+      consumes:
+      - application/json
+      description: Send document to a receiver (user)
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Send data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.SendDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Send document
+      tags:
+      - documents
+  /v1/documents/{id}/versions:
+    get:
+      consumes:
+      - application/json
+      description: Get all versions of a document
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.VersionResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get document versions
+      tags:
+      - documents
+  /v1/documents/folder/{folderId}:
+    get:
+      consumes:
+      - application/json
+      description: Get all documents in a specific folder
+      parameters:
+      - description: Folder ID
+        in: path
+        name: folderId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get documents by folder
+      tags:
+      - documents
   /v1/files/presign:
     get:
       description: Generate a temporary presigned URL from MinIO for downloading or
@@ -344,27 +1370,136 @@ paths:
       summary: Generate presigned URL for file
       tags:
       - Files
-  /v1/storage/documents:
+  /v1/folders:
     get:
-      description: Get all documents for the authenticated user with pagination
+      description: Get all folders
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get all folders
+      tags:
+      - folders
+    post:
       parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
+      - description: Folder data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateFolderRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create folder
+      tags:
+      - folders
+  /v1/folders/{id}:
+    delete:
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
         type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: page_size
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete folder
+      tags:
+      - folders
+    get:
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
         type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get folder by ID
+      tags:
+      - folders
+    put:
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Folder data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateFolderRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Update folder
+      tags:
+      - folders
+  /v1/incoming-docs:
+    get:
+      consumes:
+      - application/json
+      description: Get all incoming documents (for admin/staff)
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+                  type: array
+              type: object
         "401":
           description: Unauthorized
           schema:
@@ -375,25 +1510,74 @@ paths:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get all documents
+      summary: Get all incoming documents
       tags:
-      - Storage
-  /v1/storage/documents/{id}:
+      - incoming-docs
+  /v1/incoming-docs/{id}:
     get:
-      description: Get document information with current attachment by ID
+      consumes:
+      - application/json
+      description: Get incoming document details by ID
       parameters:
-      - description: Document ID
+      - description: Incoming Document ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get incoming document by ID
+      tags:
+      - incoming-docs
+  /v1/incoming-docs/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approve or reject an incoming document (by department head or director)
+      parameters:
+      - description: Incoming Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Approval data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.ApproveIncomingDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -408,25 +1592,38 @@ paths:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get document details
+      summary: Approve/Reject incoming document
       tags:
-      - Storage
-  /v1/storage/folders/{id}:
-    get:
-      description: Get folder information by ID
+      - incoming-docs
+  /v1/incoming-docs/{id}/receive:
+    post:
+      consumes:
+      - application/json
+      description: Mark an incoming document as received (by secretary)
       parameters:
-      - description: Folder ID
+      - description: Incoming Document ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
+      - description: Receive data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.ReceiveIncomingDocRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -441,16 +1638,18 @@ paths:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get folder details
+      summary: Receive incoming document
       tags:
-      - Storage
-  /v1/storage/folders/{id}/contents:
+      - incoming-docs
+  /v1/incoming-docs/receiver/{receiverId}:
     get:
-      description: Get folder information with subfolders and documents
+      consumes:
+      - application/json
+      description: Get incoming documents assigned to a specific receiver (user UUID)
       parameters:
-      - description: Folder ID
+      - description: Receiver User UUID
         in: path
-        name: id
+        name: receiverId
         required: true
         type: string
       produces:
@@ -459,7 +1658,369 @@ paths:
         "200":
           description: OK
           schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get incoming documents by receiver
+      tags:
+      - incoming-docs
+  /v1/incoming-docs/status/{status}:
+    get:
+      consumes:
+      - application/json
+      description: Get incoming documents filtered by status
+      parameters:
+      - description: Status (pending, received, approved, rejected)
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get incoming documents by status
+      tags:
+      - incoming-docs
+  /v1/outgoing-docs:
+    get:
+      consumes:
+      - application/json
+      description: Get all outgoing documents
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.OutgoingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all outgoing documents
+      tags:
+      - outgoing-docs
+    post:
+      consumes:
+      - application/json
+      description: Create a new outgoing document record
+      parameters:
+      - description: Outgoing Document data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateOutgoingDocRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.OutgoingDocResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create outgoing document
+      tags:
+      - outgoing-docs
+  /v1/outgoing-docs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get outgoing document details by ID
+      parameters:
+      - description: Outgoing Document ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.OutgoingDocResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get outgoing document by ID
+      tags:
+      - outgoing-docs
+  /v1/outgoing-docs/user/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Get outgoing documents for a specific user
+      parameters:
+      - description: User UUID
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.OutgoingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get outgoing documents by user
+      tags:
+      - outgoing-docs
+  /v1/roles:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all user roles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.RoleResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all user roles
+      tags:
+      - Roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new user role
+      parameters:
+      - description: Role data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.RoleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new role
+      tags:
+      - Roles
+  /v1/roles/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete role
+      tags:
+      - Roles
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.RoleResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get role by ID
+      tags:
+      - Roles
+    put:
+      consumes:
+      - application/json
+      description: Update role information
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Role data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.RoleResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -474,66 +2035,79 @@ paths:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get folder contents
+      summary: Update role
       tags:
-      - Storage
-  /v1/storage/folders/{id}/documents:
+      - Roles
+  /v1/sectors:
     get:
-      description: Get all documents in a specific folder with pagination
-      parameters:
-      - description: Folder ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: page_size
-        type: integer
+      consumes:
+      - application/json
+      description: Get list of all sectors
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all sectors
+      tags:
+      - Sectors
+    post:
+      consumes:
+      - application/json
+      description: Create a new sector
+      parameters:
+      - description: Sector data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.CreateSectorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get documents in a folder
+      summary: Create a new sector
       tags:
-      - Storage
-  /v1/storage/folders/{id}/subfolders:
-    get:
-      description: Get subfolders of a folder with pagination
+      - Sectors
+  /v1/sectors/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a sector
       parameters:
-      - description: Folder ID
+      - description: Sector ID
         in: path
         name: id
         required: true
-        type: string
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: page_size
         type: integer
       produces:
       - application/json
@@ -542,82 +2116,87 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete sector
+      tags:
+      - Sectors
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a specific sector
+      parameters:
+      - description: Sector ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get sector by ID
+      tags:
+      - Sectors
+    put:
+      consumes:
+      - application/json
+      description: Update sector information
+      parameters:
+      - description: Sector ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Sector data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/e-document-backend_internal_domain.UpdateSectorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/e-document-backend_internal_domain.SectorResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "401":
-          description: Unauthorized
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
-      summary: Get subfolders
+      summary: Update sector
       tags:
-      - Storage
-  /v1/storage/folders/root:
-    get:
-      description: Get all root folders for the authenticated user
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-      security:
-      - BearerAuth: []
-      summary: Get root folders
-      tags:
-      - Storage
-  /v1/storage/recent:
-    get:
-      description: Get recently modified files for the authenticated user
-      parameters:
-      - default: 10
-        description: Number of files to return
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/e-document-backend_internal_util.Response'
-      security:
-      - BearerAuth: []
-      summary: Get recent files
-      tags:
-      - Storage
+      - Sectors
   /v1/upload/download/{id}:
     get:
       description: Downloads a file by attachment ID with original filename

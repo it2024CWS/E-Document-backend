@@ -11,13 +11,13 @@ type Response struct {
 	Success    bool           `json:"success"`
 	Message    string         `json:"message,omitempty"`
 	ErrorCode  ErrorCode      `json:"error_code"`
-	Data       interface{}    `json:"data,omitempty"`
-	Pagination PaginationInfo `json:"pagination,omitempty"`
+	Data       interface{}     `json:"data,omitempty"`
+	Pagination *PaginationInfo `json:"pagination,omitempty"`
 }
 
 // SuccessResponse returns a successful response
 
-func SuccessResponse(c echo.Context, statusCode int, message string, data interface{}, pagination PaginationInfo) error {
+func SuccessResponse(c echo.Context, statusCode int, message string, data interface{}, pagination *PaginationInfo) error {
 	return c.JSON(statusCode, Response{
 		Success:    true,
 		Message:    message,
@@ -33,7 +33,7 @@ func OKResponse(c echo.Context, message string, data interface{}, statusCode ...
 	if len(statusCode) > 0 {
 		code = statusCode[0]
 	}
-	return SuccessResponse(c, code, message, data, PaginationInfo{})
+	return SuccessResponse(c, code, message, data, nil)
 }
 
 // PaginationInfo represents pagination metadata
@@ -54,7 +54,7 @@ func OKResponseWithPagination(c echo.Context, message string, items interface{},
 	data := PaginatedData{
 		Items: items,
 	}
-	return SuccessResponse(c, http.StatusOK, message, data, pagination)
+	return SuccessResponse(c, http.StatusOK, message, data, &pagination)
 }
 
 // HandleError handles error and returns appropriate response

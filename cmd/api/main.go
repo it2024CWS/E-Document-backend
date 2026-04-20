@@ -43,7 +43,7 @@ import (
 //	@license.name	Apache 2.0
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
-//	@host		localhost:5000
+//	@host		localhost:5001
 //	@BasePath	/api
 
 //	@securityDefinitions.apikey	BearerAuth
@@ -68,7 +68,7 @@ func main() {
 	// Middleware
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173"}, // ⚠️ ต้องระบุ origin ชัดเจน ไม่ใช่ "*"
+		AllowOrigins: []string{"http://localhost:5173", "http://localhost:5001"}, // ⚠️ ต้องระบุ origin ชัดเจน ไม่ใช่ "*"
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions, http.MethodHead},
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
