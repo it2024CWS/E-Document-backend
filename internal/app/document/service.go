@@ -44,9 +44,6 @@ func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.
 	if err != nil {
 		return nil, util.NewDatabaseError("get all documents", err)
 	}
-	if responses == nil {
-		responses = []domain.DocumentResponse{}
-	}
 	return responses, nil
 }
 

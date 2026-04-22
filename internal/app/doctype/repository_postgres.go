@@ -39,7 +39,7 @@ func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.DocType, err
 	return docTypes, rows.Err()
 }
 
-func (r *postgresRepository) FindByID(ctx context.Context, id int) (*domain.DocType, error) {
+func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.DocType, error) {
 	query := `SELECT id, type_name, created_at FROM doc_types WHERE id = $1`
 
 	var docType domain.DocType
@@ -70,7 +70,7 @@ func (r *postgresRepository) Create(ctx context.Context, docType *domain.DocType
 	return nil
 }
 
-func (r *postgresRepository) Update(ctx context.Context, id int, docType *domain.DocType) error {
+func (r *postgresRepository) Update(ctx context.Context, id string, docType *domain.DocType) error {
 	query := `UPDATE doc_types SET type_name = $1 WHERE id = $2`
 
 	result, err := r.pool.Exec(ctx, query, docType.TypeName, id)
@@ -85,7 +85,7 @@ func (r *postgresRepository) Update(ctx context.Context, id int, docType *domain
 	return nil
 }
 
-func (r *postgresRepository) Delete(ctx context.Context, id int) error {
+func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM doc_types WHERE id = $1`
 
 	result, err := r.pool.Exec(ctx, query, id)

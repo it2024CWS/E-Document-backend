@@ -3,8 +3,10 @@ package doctype
 import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
+	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -27,22 +29,49 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 
 // GetAllDocTypes godoc
 //
-//	@Summary		Get all document types
-//	@Description	Get list of all document types
-//	@Tags			DocTypes
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Success		200	{object}	util.Response{data=[]domain.DocTypeResponse}
-//	@Failure		401	{object}	util.Response
+//	@Param			page	query		int		false	"Page number"	default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search by type name"
+//	@Success		200		{object}	util.Response{data=util.PaginatedData}
+//	@Failure		401		{object}	util.Response
+//	@Failure		500		{object}	util.Response
 //	@Router			/v1/doctypes [get]
 func (h *Handler) GetAllDocTypes(c echo.Context) error {
+	// Get pagination params from query
+	page := c.QueryParam("page")
+	limit := c.QueryParam("limit")
+
+	// Default values
+	pageNum := 1
+	limitNum := 10
+
+	// Parse page
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p > 0 {
+			pageNum = p
+		}
+	}
+
+	// Parse limit
+	if limit != "" {
+		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
+			limitNum = l
+		}
+	}
+
 	docTypes, err := h.service.GetAllDocTypes(c.Request().Context())
 	if err != nil {
 		return util.HandleError(c, err)
 	}
 
-	return util.OKResponse(c, "Document types retrieved successfully", docTypes)
+	pagination := util.PaginationInfo{
+		CurrentPage:  pageNum,
+		TotalPages:   1, // Dummy
+		TotalItems:   len(docTypes),
+		ItemsPerPage: limitNum,
+	}
+
+	return util.OKResponseWithPagination(c, "Document types retrieved successfully", docTypes, pagination)
 }
 
 // GetDocTypeByID godoc
@@ -53,17 +82,19 @@ func (h *Handler) GetAllDocTypes(c echo.Context) error {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"DocType ID"
+//	@Param			id	path		string	true	"DocType ID"
 //	@Success		200	{object}	util.Response{data=domain.DocTypeResponse}
+//	@Failure		401	{object}	util.Response
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/doctypes/{id} [get]
 func (h *Handler) GetDocTypeByID(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
-	docType, err := h.service.GetDocTypeByID(c.Request().Context(), id)
+	docType, err := h.service.GetDocTypeByID(c.Request().Context(), id.String())
 	if err != nil {
 		return util.HandleError(c, err)
 	}
@@ -94,7 +125,7 @@ func (h *Handler) CreateDocType(c echo.Context) error {
 		return util.HandleError(c, err)
 	}
 
-	return util.OKResponse(c, "Document type created successfully", docType, 201)
+	return util.OKResponse(c, "Document type created successfully", docType, http.StatusCreated)
 }
 
 // UpdateDocType godoc
@@ -105,16 +136,18 @@ func (h *Handler) CreateDocType(c echo.Context) error {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int							true	"DocType ID"
+//	@Param			id		path		string							true	"DocType ID"
 //	@Param			request	body		domain.UpdateDocTypeRequest	true	"DocType data"
 //	@Success		200		{object}	util.Response{data=domain.DocTypeResponse}
 //	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
 //	@Failure		404		{object}	util.Response
 //	@Router			/v1/doctypes/{id} [put]
 func (h *Handler) UpdateDocType(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
 	var req domain.UpdateDocTypeRequest
@@ -122,7 +155,7 @@ func (h *Handler) UpdateDocType(c echo.Context) error {
 		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid JSON format"))
 	}
 
-	docType, err := h.service.UpdateDocType(c.Request().Context(), id, req)
+	docType, err := h.service.UpdateDocType(c.Request().Context(), id.String(), req)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
@@ -138,17 +171,19 @@ func (h *Handler) UpdateDocType(c echo.Context) error {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"DocType ID"
+//	@Param			id	path		string	true	"DocType ID"
 //	@Success		200	{object}	util.Response
+//	@Failure		401	{object}	util.Response
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/doctypes/{id} [delete]
 func (h *Handler) DeleteDocType(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid integer"))
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
 
-	if err := h.service.DeleteDocType(c.Request().Context(), id); err != nil {
+	if err := h.service.DeleteDocType(c.Request().Context(), id.String()); err != nil {
 		return util.HandleError(c, err)
 	}
 

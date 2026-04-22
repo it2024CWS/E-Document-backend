@@ -4,6 +4,7 @@ import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -31,18 +32,49 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 
 // GetAllFolders godoc
 //
-//	@Summary		Get all folders
-//	@Description	Get all folders
-//	@Tags			folders
-//	@Security		BearerAuth
-//	@Success		200	{object}	util.Response{data=[]domain.FolderResponse}
+//	@Param			page	query		int		false	"Page number"	default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search by folder name"
+//	@Success		200		{object}	util.Response{data=util.PaginatedData}
+//	@Failure		401		{object}	util.Response
+//	@Failure		500		{object}	util.Response
 //	@Router			/v1/folders [get]
 func (h *Handler) GetAllFolders(c echo.Context) error {
+	// Get pagination params from query
+	page := c.QueryParam("page")
+	limit := c.QueryParam("limit")
+
+	// Default values
+	pageNum := 1
+	limitNum := 10
+
+	// Parse page
+	if page != "" {
+		if p, err := strconv.Atoi(page); err == nil && p > 0 {
+			pageNum = p
+		}
+	}
+
+	// Parse limit
+	if limit != "" {
+		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
+			limitNum = l
+		}
+	}
+
 	folders, err := h.service.GetAllFolders(c.Request().Context())
 	if err != nil {
 		return util.HandleError(c, err)
 	}
-	return c.JSON(http.StatusOK, util.NewOKResponse(folders))
+
+	pagination := util.PaginationInfo{
+		CurrentPage:  pageNum,
+		TotalPages:   1, // Dummy
+		TotalItems:   len(folders),
+		ItemsPerPage: limitNum,
+	}
+
+	return util.OKResponseWithPagination(c, "Folders retrieved successfully", folders, pagination)
 }
 
 // GetFolderByID godoc
@@ -50,19 +82,24 @@ func (h *Handler) GetAllFolders(c echo.Context) error {
 //	@Summary		Get folder by ID
 //	@Tags			folders
 //	@Security		BearerAuth
-//	@Param			id	path	int	true	"Folder ID"
+//	@Param			id	path	string	true	"Folder ID"
 //	@Success		200	{object}	util.Response{data=domain.FolderResponse}
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
 //	@Router			/v1/folders/{id} [get]
 func (h *Handler) GetFolderByID(c echo.Context) error {
-	id, err := uuid.Parse(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
+
 	folder, err := h.service.GetFolderByID(c.Request().Context(), id)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
-	return c.JSON(http.StatusOK, util.NewOKResponse(folder))
+
+	return util.OKResponse(c, "Folder retrieved successfully", folder)
 }
 
 // CreateFolder godoc
@@ -83,7 +120,7 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 	if err != nil {
 		return util.HandleError(c, err)
 	}
-	return c.JSON(http.StatusCreated, util.NewResponse(http.StatusCreated, "Folder created successfully", folder))
+	return util.OKResponse(c, "Folder created successfully", folder, http.StatusCreated)
 }
 
 // UpdateFolder godoc
@@ -91,24 +128,30 @@ func (h *Handler) CreateFolder(c echo.Context) error {
 //	@Summary		Update folder
 //	@Tags			folders
 //	@Security		BearerAuth
-//	@Param			id		path	int						true	"Folder ID"
+//	@Param			id		path	string						true	"Folder ID"
 //	@Param			request	body	domain.CreateFolderRequest	true	"Folder data"
 //	@Success		200		{object}	util.Response{data=domain.FolderResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		404		{object}	util.Response
 //	@Router			/v1/folders/{id} [put]
 func (h *Handler) UpdateFolder(c echo.Context) error {
-	id, err := uuid.Parse(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
+
 	var req domain.CreateFolderRequest
 	if err := c.Bind(&req); err != nil {
 		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid request format"))
 	}
+
 	folder, err := h.service.UpdateFolder(c.Request().Context(), id, req)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
-	return c.JSON(http.StatusOK, util.NewOKResponse(folder))
+
+	return util.OKResponse(c, "Folder updated successfully", folder)
 }
 
 // DeleteFolder godoc
@@ -116,16 +159,21 @@ func (h *Handler) UpdateFolder(c echo.Context) error {
 //	@Summary		Delete folder
 //	@Tags			folders
 //	@Security		BearerAuth
-//	@Param			id	path	int	true	"Folder ID"
+//	@Param			id	path	string	true	"Folder ID"
 //	@Success		200	{object}	util.Response
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
 //	@Router			/v1/folders/{id} [delete]
 func (h *Handler) DeleteFolder(c echo.Context) error {
-	id, err := uuid.Parse(c.Param("id"))
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
 	}
+
 	if err := h.service.DeleteFolder(c.Request().Context(), id); err != nil {
 		return util.HandleError(c, err)
 	}
-	return c.JSON(http.StatusOK, util.NewOKResponse(nil))
+
+	return util.OKResponse(c, "Folder deleted successfully", nil)
 }

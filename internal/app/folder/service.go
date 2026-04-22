@@ -51,12 +51,18 @@ func (s *service) CreateFolder(ctx context.Context, userID string, req domain.Cr
 	}
 
 	userUUID := parseUserUUID(userID)
+	var parentFolderID *uuid.UUID
+	if req.ParentFolderID != "" {
+		if pID, err := uuid.Parse(req.ParentFolderID); err == nil {
+			parentFolderID = &pID
+		}
+	}
 
 	folder := &domain.Folder{
 		FolderName:     req.FolderName,
 		FolderPath:     req.FolderPath,
 		UserID:         userUUID,
-		ParentFolderID: req.ParentFolderID,
+		ParentFolderID: parentFolderID,
 	}
 
 	if err := s.repo.Create(ctx, folder); err != nil {

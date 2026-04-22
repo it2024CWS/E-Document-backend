@@ -9,10 +9,10 @@ import (
 
 type Service interface {
 	GetAllDocTypes(ctx context.Context) ([]domain.DocTypeResponse, error)
-	GetDocTypeByID(ctx context.Context, id int) (*domain.DocTypeResponse, error)
+	GetDocTypeByID(ctx context.Context, id string) (*domain.DocTypeResponse, error)
 	CreateDocType(ctx context.Context, req domain.CreateDocTypeRequest) (*domain.DocTypeResponse, error)
-	UpdateDocType(ctx context.Context, id int, req domain.UpdateDocTypeRequest) (*domain.DocTypeResponse, error)
-	DeleteDocType(ctx context.Context, id int) error
+	UpdateDocType(ctx context.Context, id string, req domain.UpdateDocTypeRequest) (*domain.DocTypeResponse, error)
+	DeleteDocType(ctx context.Context, id string) error
 }
 
 type service struct {
@@ -37,10 +37,10 @@ func (s *service) GetAllDocTypes(ctx context.Context) ([]domain.DocTypeResponse,
 	return responses, nil
 }
 
-func (s *service) GetDocTypeByID(ctx context.Context, id int) (*domain.DocTypeResponse, error) {
+func (s *service) GetDocTypeByID(ctx context.Context, id string) (*domain.DocTypeResponse, error) {
 	docType, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("DocType", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("DocType", fmt.Sprintf("%s", id))
 	}
 
 	response := docType.ToResponse()
@@ -62,14 +62,14 @@ func (s *service) CreateDocType(ctx context.Context, req domain.CreateDocTypeReq
 	return &response, nil
 }
 
-func (s *service) UpdateDocType(ctx context.Context, id int, req domain.UpdateDocTypeRequest) (*domain.DocTypeResponse, error) {
+func (s *service) UpdateDocType(ctx context.Context, id string, req domain.UpdateDocTypeRequest) (*domain.DocTypeResponse, error) {
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
 	existingDocType, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("DocType", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("DocType", fmt.Sprintf("%s", id))
 	}
 
 	if req.TypeName != "" {
@@ -89,9 +89,9 @@ func (s *service) UpdateDocType(ctx context.Context, id int, req domain.UpdateDo
 	return &response, nil
 }
 
-func (s *service) DeleteDocType(ctx context.Context, id int) error {
+func (s *service) DeleteDocType(ctx context.Context, id string) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return util.NewNotFoundError("DocType", fmt.Sprintf("%d", id))
+		return util.NewNotFoundError("DocType", fmt.Sprintf("%s", id))
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {

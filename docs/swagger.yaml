@@ -883,11 +883,21 @@ paths:
       - departments
   /v1/doctypes:
     get:
-      consumes:
-      - application/json
-      description: Get list of all document types
-      produces:
-      - application/json
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by type name
+        in: query
+        name: search
+        type: string
       responses:
         "200":
           description: OK
@@ -896,19 +906,16 @@ paths:
             - $ref: '#/definitions/e-document-backend_internal_util.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
-                  type: array
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
               type: object
         "401":
           description: Unauthorized
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
-      security:
-      - BearerAuth: []
-      summary: Get all document types
-      tags:
-      - DocTypes
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
     post:
       consumes:
       - application/json
@@ -951,12 +958,16 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
@@ -977,7 +988,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -990,6 +1001,10 @@ paths:
                 data:
                   $ref: '#/definitions/e-document-backend_internal_domain.DocTypeResponse'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
           schema:
@@ -1008,7 +1023,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: DocType data
         in: body
         name: request
@@ -1031,6 +1046,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
         "404":
           description: Not Found
           schema:
@@ -1042,11 +1061,21 @@ paths:
       - DocTypes
   /v1/documents:
     get:
-      consumes:
-      - application/json
-      description: Get all documents for the authenticated user
-      produces:
-      - application/json
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by document name
+        in: query
+        name: search
+        type: string
       responses:
         "200":
           description: OK
@@ -1055,9 +1084,7 @@ paths:
             - $ref: '#/definitions/e-document-backend_internal_util.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/e-document-backend_internal_domain.DocumentResponse'
-                  type: array
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
               type: object
         "401":
           description: Unauthorized
@@ -1067,11 +1094,6 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
-      security:
-      - BearerAuth: []
-      summary: Get all documents
-      tags:
-      - documents
     post:
       consumes:
       - application/json
@@ -1118,7 +1140,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1148,7 +1170,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1183,7 +1205,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Document data
         in: body
         name: request
@@ -1229,7 +1251,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Send data
         in: body
         name: request
@@ -1270,7 +1292,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1308,7 +1330,7 @@ paths:
         in: path
         name: folderId
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1381,7 +1403,21 @@ paths:
       - Files
   /v1/folders:
     get:
-      description: Get all folders
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by folder name
+        in: query
+        name: search
+        type: string
       responses:
         "200":
           description: OK
@@ -1390,15 +1426,16 @@ paths:
             - $ref: '#/definitions/e-document-backend_internal_util.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
-                  type: array
+                  $ref: '#/definitions/e-document-backend_internal_util.PaginatedData'
               type: object
-      security:
-      - BearerAuth: []
-      summary: Get all folders
-      tags:
-      - folders
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
     post:
       parameters:
       - description: Folder data
@@ -1429,10 +1466,18 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
@@ -1446,7 +1491,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       responses:
         "200":
           description: OK
@@ -1457,6 +1502,14 @@ paths:
                 data:
                   $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
               type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Get folder by ID
@@ -1468,7 +1521,7 @@ paths:
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Folder data
         in: body
         name: request
@@ -1485,6 +1538,14 @@ paths:
                 data:
                   $ref: '#/definitions/e-document-backend_internal_domain.FolderResponse'
               type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
       security:
       - BearerAuth: []
       summary: Update folder
@@ -2463,11 +2524,11 @@ paths:
         type: string
       - description: First name
         in: formData
-        name: first_name
+        name: firstname
         type: string
       - description: Last name
         in: formData
-        name: last_name
+        name: lastname
         type: string
       - description: Nickname
         in: formData
@@ -2618,11 +2679,11 @@ paths:
         type: string
       - description: First name
         in: formData
-        name: first_name
+        name: firstname
         type: string
       - description: Last name
         in: formData
-        name: last_name
+        name: lastname
         type: string
       - description: Nickname
         in: formData

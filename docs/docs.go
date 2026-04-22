@@ -561,22 +561,28 @@ const docTemplate = `{
         },
         "/v1/doctypes": {
             "get": {
-                "security": [
+                "parameters": [
                     {
-                        "BearerAuth": []
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by type name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
-                "description": "Get list of all document types",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DocTypes"
-                ],
-                "summary": "Get all document types",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -589,10 +595,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/e-document-backend_internal_domain.DocTypeResponse"
-                                            }
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginatedData"
                                         }
                                     }
                                 }
@@ -601,6 +604,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -683,7 +692,7 @@ const docTemplate = `{
                 "summary": "Get document type by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "DocType ID",
                         "name": "id",
                         "in": "path",
@@ -707,6 +716,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
                     "404": {
@@ -736,7 +751,7 @@ const docTemplate = `{
                 "summary": "Update document type",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "DocType ID",
                         "name": "id",
                         "in": "path",
@@ -777,6 +792,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -804,7 +825,7 @@ const docTemplate = `{
                 "summary": "Delete document type",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "DocType ID",
                         "name": "id",
                         "in": "path",
@@ -814,6 +835,12 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -829,22 +856,28 @@ const docTemplate = `{
         },
         "/v1/documents": {
             "get": {
-                "security": [
+                "parameters": [
                     {
-                        "BearerAuth": []
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by document name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
-                "description": "Get all documents for the authenticated user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "documents"
-                ],
-                "summary": "Get all documents",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -857,10 +890,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/e-document-backend_internal_domain.DocumentResponse"
-                                            }
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginatedData"
                                         }
                                     }
                                 }
@@ -963,7 +993,7 @@ const docTemplate = `{
                 "summary": "Get documents by folder",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Folder ID",
                         "name": "folderId",
                         "in": "path",
@@ -1027,7 +1057,7 @@ const docTemplate = `{
                 "summary": "Get document by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Document ID",
                         "name": "id",
                         "in": "path",
@@ -1086,7 +1116,7 @@ const docTemplate = `{
                 "summary": "Update document",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Document ID",
                         "name": "id",
                         "in": "path",
@@ -1160,7 +1190,7 @@ const docTemplate = `{
                 "summary": "Delete document",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Document ID",
                         "name": "id",
                         "in": "path",
@@ -1209,7 +1239,7 @@ const docTemplate = `{
                 "summary": "Send document",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Document ID",
                         "name": "id",
                         "in": "path",
@@ -1273,7 +1303,7 @@ const docTemplate = `{
                 "summary": "Get document versions",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Document ID",
                         "name": "id",
                         "in": "path",
@@ -1389,16 +1419,28 @@ const docTemplate = `{
         },
         "/v1/folders": {
             "get": {
-                "security": [
+                "parameters": [
                     {
-                        "BearerAuth": []
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by folder name",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
-                "description": "Get all folders",
-                "tags": [
-                    "folders"
-                ],
-                "summary": "Get all folders",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1411,14 +1453,23 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/e-document-backend_internal_domain.FolderResponse"
-                                            }
+                                            "$ref": "#/definitions/e-document-backend_internal_util.PaginatedData"
                                         }
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
                     }
                 }
@@ -1479,7 +1530,7 @@ const docTemplate = `{
                 "summary": "Get folder by ID",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Folder ID",
                         "name": "id",
                         "in": "path",
@@ -1504,6 +1555,18 @@ const docTemplate = `{
                                 }
                             ]
                         }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
                     }
                 }
             },
@@ -1519,7 +1582,7 @@ const docTemplate = `{
                 "summary": "Update folder",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Folder ID",
                         "name": "id",
                         "in": "path",
@@ -1553,6 +1616,18 @@ const docTemplate = `{
                                 }
                             ]
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
                     }
                 }
             },
@@ -1568,7 +1643,7 @@ const docTemplate = `{
                 "summary": "Delete folder",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Folder ID",
                         "name": "id",
                         "in": "path",
@@ -1578,6 +1653,18 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/e-document-backend_internal_util.Response"
                         }
@@ -3204,13 +3291,13 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "First name",
-                        "name": "first_name",
+                        "name": "firstname",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Last name",
-                        "name": "last_name",
+                        "name": "lastname",
                         "in": "formData"
                     },
                     {
@@ -3403,13 +3490,13 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "First name",
-                        "name": "first_name",
+                        "name": "firstname",
                         "in": "formData"
                     },
                     {
                         "type": "string",
                         "description": "Last name",
-                        "name": "last_name",
+                        "name": "lastname",
                         "in": "formData"
                     },
                     {
