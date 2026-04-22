@@ -3215,14 +3215,20 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Nickname",
+                        "name": "nickname",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Phone number (E.164 format)",
                         "name": "phone",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Role (Director, DepartmentManager, SectorManager, Employee)",
-                        "name": "role",
+                        "description": "Role ID",
+                        "name": "role_id",
                         "in": "formData",
                         "required": true
                     },
@@ -3237,6 +3243,18 @@ const docTemplate = `{
                         "description": "Sector ID",
                         "name": "sector_id",
                         "in": "formData"
+                    },
+                    {
+                        "enum": [
+                            "true",
+                            "false"
+                        ],
+                        "type": "string",
+                        "default": "true",
+                        "description": "Is active (true/false)",
+                        "name": "is_active",
+                        "in": "formData",
+                        "required": true
                     },
                     {
                         "type": "file",
@@ -3396,14 +3414,20 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Nickname",
+                        "name": "nickname",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
                         "description": "Phone number (E.164 format)",
                         "name": "phone",
                         "in": "formData"
                     },
                     {
                         "type": "string",
-                        "description": "Role (Director, DepartmentManager, SectorManager, Employee)",
-                        "name": "role",
+                        "description": "Role ID",
+                        "name": "role_id",
                         "in": "formData"
                     },
                     {
@@ -3416,6 +3440,16 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Sector ID",
                         "name": "sector_id",
+                        "in": "formData"
+                    },
+                    {
+                        "enum": [
+                            "true",
+                            "false"
+                        ],
+                        "type": "string",
+                        "description": "Is active",
+                        "name": "is_active",
                         "in": "formData"
                     },
                     {

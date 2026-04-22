@@ -2469,13 +2469,17 @@ paths:
         in: formData
         name: last_name
         type: string
+      - description: Nickname
+        in: formData
+        name: nickname
+        type: string
       - description: Phone number (E.164 format)
         in: formData
         name: phone
         type: string
-      - description: Role (Director, DepartmentManager, SectorManager, Employee)
+      - description: Role ID
         in: formData
-        name: role
+        name: role_id
         required: true
         type: string
       - description: Department ID
@@ -2485,6 +2489,15 @@ paths:
       - description: Sector ID
         in: formData
         name: sector_id
+        type: string
+      - default: "true"
+        description: Is active (true/false)
+        enum:
+        - "true"
+        - "false"
+        in: formData
+        name: is_active
+        required: true
         type: string
       - description: Profile picture (max 5MB, jpg/png/gif/webp)
         in: formData
@@ -2611,13 +2624,17 @@ paths:
         in: formData
         name: last_name
         type: string
+      - description: Nickname
+        in: formData
+        name: nickname
+        type: string
       - description: Phone number (E.164 format)
         in: formData
         name: phone
         type: string
-      - description: Role (Director, DepartmentManager, SectorManager, Employee)
+      - description: Role ID
         in: formData
-        name: role
+        name: role_id
         type: string
       - description: Department ID
         in: formData
@@ -2626,6 +2643,13 @@ paths:
       - description: Sector ID
         in: formData
         name: sector_id
+        type: string
+      - description: Is active
+        enum:
+        - "true"
+        - "false"
+        in: formData
+        name: is_active
         type: string
       - description: Profile picture (max 5MB, jpg/png/gif/webp)
         in: formData

@@ -67,7 +67,7 @@ func (s *service) CreateUser(ctx context.Context, req domain.CreateUserRequest) 
 	}
 
 	// Set default is_active to true if not provided
-	isActive := true
+	isActive := false // can validate when it is string, but now it is bool
 	if req.IsActive != nil {
 		isActive = *req.IsActive
 	}

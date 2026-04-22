@@ -58,12 +58,14 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 //	@Param			username		formData	string	true	"Username"
 //	@Param			email			formData	string	true	"Email"
 //	@Param			password		formData	string	true	"Password (min 6 characters)"
-//	@Param			first_name		formData	string	false	"First name"
-//	@Param			last_name		formData	string	false	"Last name"
+//	@Param			firstname		formData	string	false	"First name"
+//	@Param			lastname		formData	string	false	"Last name"
+//	@Param			nickname		formData	string	false	"Nickname"
 //	@Param			phone			formData	string	false	"Phone number (E.164 format)"
-//	@Param			role			formData	string	true	"Role (Director, DepartmentManager, SectorManager, Employee)"
+//	@Param			role_id			formData	string	true	"Role ID"
 //	@Param			department_id	formData	string	false	"Department ID"
 //	@Param			sector_id		formData	string	false	"Sector ID"
+//	@Param			is_active		formData	string	true	"Is active (true/false)"	Enums(true, false) default(true)
 //	@Param			profile_picture	formData	file	false	"Profile picture (max 5MB, jpg/png/gif/webp)"
 //	@Success		201				{object}	util.Response{data=domain.UserResponse}
 //	@Failure		400				{object}	util.Response
@@ -79,6 +81,12 @@ func (h *Handler) CreateUser(c echo.Context) error {
 		Lastname:  c.FormValue("lastname"),
 		Nickname:  c.FormValue("nickname"),
 		Phone:     c.FormValue("phone"),
+	}
+
+	// Parse is_active
+	if isActiveStr := c.FormValue("is_active"); isActiveStr != "" {
+		isActive := isActiveStr == "true"
+		req.IsActive = &isActive
 	}
 
 	// Parse role_id
@@ -246,12 +254,14 @@ func (h *Handler) GetUserByID(c echo.Context) error {
 //	@Param			username		formData	string	false	"Username"
 //	@Param			email			formData	string	false	"Email"
 //	@Param			password		formData	string	false	"Password (min 6 characters)"
-//	@Param			first_name		formData	string	false	"First name"
-//	@Param			last_name		formData	string	false	"Last name"
+//	@Param			firstname		formData	string	false	"First name"
+//	@Param			lastname		formData	string	false	"Last name"
+//	@Param			nickname		formData	string	false	"Nickname"
 //	@Param			phone			formData	string	false	"Phone number (E.164 format)"
-//	@Param			role			formData	string	false	"Role (Director, DepartmentManager, SectorManager, Employee)"
+//	@Param			role_id			formData	string	false	"Role ID"
 //	@Param			department_id	formData	string	false	"Department ID"
 //	@Param			sector_id		formData	string	false	"Sector ID"
+//	@Param			is_active		formData	string	false	"Is active"	Enums(true, false)
 //	@Param			profile_picture	formData	file	false	"Profile picture (max 5MB, jpg/png/gif/webp)"
 //	@Success		200				{object}	util.Response{data=domain.UserResponse}
 //	@Failure		400				{object}	util.Response
