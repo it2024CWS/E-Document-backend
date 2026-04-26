@@ -130,7 +130,6 @@ func (d *Document) ToResponse() DocumentResponse {
 	return res
 }
 
-
 // DocumentAttachment represents a file attachment associated with a document.
 // Used by the tusd upload pipeline.
 type DocumentAttachment struct {

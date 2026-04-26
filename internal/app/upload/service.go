@@ -132,33 +132,77 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		currentParentID = &folder.ID
 	}
 
-	// Create document – use filename (without extension) as doc name
+	// -- Document & Version logic --
+	// Check if a document with the same name + type already exists in the same folder
 	titleWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	docNo := util.GenerateLALDocNumber()
 	docExt := strings.TrimPrefix(filepath.Ext(fileName), ".")
-	doc := &domain.Document{
-		DocNo:         docNo,
-		DocName:       titleWithoutExt,
-		DocPath:       params.FilePath,
-		Type:          docExt,
-		FolderID:      currentParentID,
-		RegistrantID:  &params.OwnerID,
-		Status:        domain.StatusNone,
-		VersionNumber: 1,
-	}
 
-	if createErr := s.repo.CreateDocument(ctx, tx, doc); createErr != nil {
-		err = createErr
+	existingDoc, findErr := s.repo.FindDocumentByNameAndType(ctx, tx, titleWithoutExt, docExt, currentParentID)
+	if findErr != nil {
+		err = findErr
 		return nil, err
 	}
+
+	var doc *domain.Document
+	var newVersionNumber int
+
+	if existingDoc == nil {
+		// ─── NEW FILE: create document + version 1 ───
+		docNo := util.GenerateLALDocNumber()
+		doc = &domain.Document{
+			DocNo:         docNo,
+			DocName:       titleWithoutExt,
+			Type:          docExt,
+			FolderID:      currentParentID,
+			RegistrantID:  &params.OwnerID,
+			Status:        domain.StatusNone,
+			VersionNumber: 1,
+		}
+
+		if createErr := s.repo.CreateDocument(ctx, tx, doc); createErr != nil {
+			err = createErr
+			return nil, err
+		}
+		newVersionNumber = 1
+
+		log.Info().
+			Str("document_id", doc.ID.String()).
+			Str("doc_name", doc.DocName).
+			Msg("Created new document (version 1)")
+	} else {
+		// ─── EXISTING FILE: increment version ───
+		latestVersion, vErr := s.repo.GetLatestVersionByDocumentID(ctx, tx, existingDoc.ID)
+		if vErr != nil {
+			err = vErr
+			return nil, err
+		}
+		newVersionNumber = latestVersion + 1
+
+		// Update the document's current path and version_number
+		if updateErr := s.repo.UpdateDocumentVersion(ctx, tx, existingDoc.ID, newVersionNumber, params.FilePath); updateErr != nil {
+			err = updateErr
+			return nil, err
+		}
+
+		// Mark old attachments as not current
+		if markErr := s.repo.SetPreviousVersionsNotCurrent(ctx, tx, existingDoc.ID); markErr != nil {
+			err = markErr
+			return nil, err
+		}
+
+		doc = existingDoc
+		doc.VersionNumber = newVersionNumber
+
+		log.Info().
+			Str("document_id", doc.ID.String()).
+			Str("doc_name", doc.DocName).
+			Int("new_version", newVersionNumber).
+			Msg("Updated existing document to new version")
+	}
+
 	result.Document = doc
 
-	log.Info().
-		Str("document_id", doc.ID.String()).
-		Str("doc_name", doc.DocName).
-		Msg("Created new document")
-
-	// Create attachment
+	// Create attachment (always new for every upload)
 	attachment := &domain.DocumentAttachment{
 		ID:         uuid.New(),
 		DocumentID: doc.ID,
@@ -166,7 +210,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		FilePath:   params.FilePath,
 		FileSize:   params.FileSize,
 		FileType:   params.FileType,
-		Version:    1,
+		Version:    newVersionNumber,
 		IsCurrent:  true,
 		UploadedBy: params.OwnerID,
 	}
@@ -177,10 +221,11 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 	}
 	result.Attachment = attachment
 
-	// Create version
+	// Create version record (with folder_id if available)
 	version := &domain.Version{
 		DocID:         doc.ID,
-		VersionNumber: 1,
+		FolderID:      doc.FolderID,
+		VersionNumber: newVersionNumber,
 		DocPath:       params.FilePath,
 	}
 	if createErr := s.repo.CreateVersion(ctx, tx, version); createErr != nil {
@@ -193,7 +238,8 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		Str("file_name", attachment.FileName).
 		Str("file_path", attachment.FilePath).
 		Int64("file_size", attachment.FileSize).
-		Msg("Created new attachment")
+		Int("version", newVersionNumber).
+		Msg("Created new attachment and version")
 
 	// Commit transaction
 	if commitErr := tx.Commit(ctx); commitErr != nil {

@@ -916,6 +916,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all document types
+      tags:
+      - DocTypes
     post:
       consumes:
       - application/json
@@ -1094,6 +1099,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all documents
+      tags:
+      - documents
     post:
       consumes:
       - application/json
@@ -1436,6 +1446,11 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all folders
+      tags:
+      - folders
     post:
       parameters:
       - description: Folder data

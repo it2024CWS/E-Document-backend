@@ -561,6 +561,15 @@ const docTemplate = `{
         },
         "/v1/doctypes": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "DocTypes"
+                ],
+                "summary": "Get all document types",
                 "parameters": [
                     {
                         "type": "integer",
@@ -856,6 +865,15 @@ const docTemplate = `{
         },
         "/v1/documents": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "documents"
+                ],
+                "summary": "Get all documents",
                 "parameters": [
                     {
                         "type": "integer",
@@ -1419,6 +1437,15 @@ const docTemplate = `{
         },
         "/v1/folders": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "folders"
+                ],
+                "summary": "Get all folders",
                 "parameters": [
                     {
                         "type": "integer",

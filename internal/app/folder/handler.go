@@ -32,6 +32,9 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 
 // GetAllFolders godoc
 //
+//	@Summary		Get all folders
+//	@Tags			folders
+//	@Security		BearerAuth
 //	@Param			page	query		int		false	"Page number"	default(1)
 //	@Param			limit	query		int		false	"Items per page"	default(10)
 //	@Param			search	query		string	false	"Search by folder name"

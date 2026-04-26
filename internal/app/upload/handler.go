@@ -190,7 +190,10 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 	ownerIDStr := upload.MetaData["owner_id"]
 	parentFolderIDStr := upload.MetaData["parent_folder_id"]
 	fileType := upload.MetaData["file_type"]
-	fileName := upload.MetaData["filename"]
+
+	// actualFileName คือชื่อไฟล์จริงที่ tusd รับมาจาก Upload-Metadata "filename"
+	// (tusd decode base64 ให้อัตโนมัติ) — ใช้สำหรับค้นหาและบันทึกเอกสาร
+	actualFileName := upload.MetaData["filename"]
 
 	// Validate required metadata
 	if ownerIDStr == "" {
@@ -212,15 +215,36 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 		}
 	}
 
-	// Use relative_path if provided, otherwise use filename
-	if relativePath == "" && fileName != "" {
-		relativePath = fileName
+	// ใช้ relative_path จาก Frontend สำหรับโครงสร้าง folder เท่านั้น
+	// แต่ชื่อไฟล์สุดท้ายให้ใช้ actualFileName (ชื่อจริงจากไฟล์ที่อัพโหลด)
+	if relativePath == "" {
+		// ไม่มี relative_path — ใช้ชื่อไฟล์จริงแทน
+		if actualFileName == "" {
+			log.Error().Str("upload_id", upload.ID).Msg("Missing relative_path and filename in metadata")
+			return
+		}
+		relativePath = actualFileName
+	} else {
+		// มี relative_path — แต่เปลี่ยนชื่อไฟล์ส่วนท้ายเป็น actualFileName
+		// เพื่อให้ตรวจสอบไฟล์ซ้ำด้วยชื่อจริงที่อัพโหลด ไม่ใช่ชื่อที่ Frontend ระบุ
+		if actualFileName != "" {
+			// แยก folder path ออก แล้วใส่ชื่อไฟล์จริงแทน
+			normalizedPath := strings.ReplaceAll(relativePath, "\\", "/")
+			if idx := strings.LastIndex(normalizedPath, "/"); idx >= 0 {
+				// มี folder prefix → คงไว้ แต่เปลี่ยน filename ท้ายสุด
+				relativePath = normalizedPath[:idx+1] + actualFileName
+			} else {
+				// ไม่มี folder prefix → ใช้ชื่อจริงโดยตรง
+				relativePath = actualFileName
+			}
+		}
 	}
 
-	if relativePath == "" {
-		log.Error().Str("upload_id", upload.ID).Msg("Missing relative_path and filename in metadata")
-		return
-	}
+	log.Debug().
+		Str("upload_id", upload.ID).
+		Str("actual_filename", actualFileName).
+		Str("resolved_relative_path", relativePath).
+		Msg("Resolved relative path using actual uploaded filename")
 
 	// Build the MinIO file path (the actual location in S3)
 	// tusd stores files with the upload ID as the object key

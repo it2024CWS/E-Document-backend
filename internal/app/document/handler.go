@@ -33,6 +33,9 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 
 // GetAllDocuments godoc
 //
+//	@Summary		Get all documents
+//	@Tags			documents
+//	@Security		BearerAuth
 //	@Param			page	query		int		false	"Page number"	default(1)
 //	@Param			limit	query		int		false	"Items per page"	default(10)
 //	@Param			search	query		string	false	"Search by document name"
@@ -93,7 +96,7 @@ func (h *Handler) GetAllDocuments(c echo.Context) error {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			id	path		string	true	"Document ID"
-//	@Success		200	{object}	util.Response{data=domain.DocumentResponse}
+//	@Success		200	{object}	util.Response{data=domain.DocumentDetailResponse}
 //	@Failure		401	{object}	util.Response
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/documents/{id} [get]

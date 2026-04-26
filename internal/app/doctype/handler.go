@@ -29,6 +29,9 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 
 // GetAllDocTypes godoc
 //
+//	@Summary		Get all document types
+//	@Tags			DocTypes
+//	@Security		BearerAuth
 //	@Param			page	query		int		false	"Page number"	default(1)
 //	@Param			limit	query		int		false	"Items per page"	default(10)
 //	@Param			search	query		string	false	"Search by type name"

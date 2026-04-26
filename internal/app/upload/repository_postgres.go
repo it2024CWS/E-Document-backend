@@ -105,7 +105,7 @@ func (r *postgresRepository) GetFolderByID(ctx context.Context, folderID int) (*
 // CreateDocument inserts a new document and populates doc.ID
 func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.Document) error {
 	query := `
-		INSERT INTO docs (doc_no, doc_name, doc_path, type, folder_id, registrant_id, status, created_at, updated_at)
+		INSERT INTO docs (doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at
 	`
@@ -116,11 +116,11 @@ func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc 
 	return tx.QueryRow(ctx, query,
 		doc.DocNo,
 		doc.DocName,
-		doc.DocPath,
 		doc.Type,
 		doc.FolderID,
 		doc.RegistrantID,
 		doc.Status,
+		doc.VersionNumber,
 		doc.CreatedAt,
 		doc.UpdatedAt,
 	).Scan(&doc.ID, &doc.CreatedAt, &doc.UpdatedAt)
@@ -129,13 +129,14 @@ func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc 
 // CreateVersion inserts a new document version
 func (r *postgresRepository) CreateVersion(ctx context.Context, tx pgx.Tx, version *domain.Version) error {
 	query := `
-		INSERT INTO versions (doc_id, version_number, doc_path, created_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO versions (doc_id, folder_id, version_number, doc_path, created_at)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at
 	`
 	version.CreatedAt = time.Now().UTC()
 	return tx.QueryRow(ctx, query,
 		version.DocID,
+		version.FolderID,
 		version.VersionNumber,
 		version.DocPath,
 		version.CreatedAt,
@@ -165,8 +166,8 @@ func (r *postgresRepository) CreateAttachment(ctx context.Context, tx pgx.Tx, at
 }
 
 // GetLatestVersionByDocumentID returns the highest version number for the given document
-func (r *postgresRepository) GetLatestVersionByDocumentID(ctx context.Context, tx pgx.Tx, documentID int) (int, error) {
-	query := `SELECT COALESCE(MAX(version), 0) FROM document_attachments WHERE document_id = $1`
+func (r *postgresRepository) GetLatestVersionByDocumentID(ctx context.Context, tx pgx.Tx, documentID uuid.UUID) (int, error) {
+	query := `SELECT COALESCE(MAX(version_number), 0) FROM versions WHERE doc_id = $1`
 	var version int
 	if err := tx.QueryRow(ctx, query, documentID).Scan(&version); err != nil {
 		return 0, fmt.Errorf("failed to get latest version: %w", err)
@@ -175,12 +176,60 @@ func (r *postgresRepository) GetLatestVersionByDocumentID(ctx context.Context, t
 }
 
 // SetPreviousVersionsNotCurrent marks all existing current attachments of a document as not current
-func (r *postgresRepository) SetPreviousVersionsNotCurrent(ctx context.Context, tx pgx.Tx, documentID int) error {
+func (r *postgresRepository) SetPreviousVersionsNotCurrent(ctx context.Context, tx pgx.Tx, documentID uuid.UUID) error {
 	query := `UPDATE document_attachments SET is_current = false WHERE document_id = $1 AND is_current = true`
 	if _, err := tx.Exec(ctx, query, documentID); err != nil {
 		return fmt.Errorf("failed to update previous versions: %w", err)
 	}
 	return nil
+}
+
+// UpdateDocumentVersion updates only the version_number of an existing document (path lives in versions table)
+func (r *postgresRepository) UpdateDocumentVersion(ctx context.Context, tx pgx.Tx, docID uuid.UUID, newVersionNumber int, newDocPath string) error {
+	query := `UPDATE docs SET version_number = $1, updated_at = $2 WHERE id = $3`
+	if _, err := tx.Exec(ctx, query, newVersionNumber, time.Now().UTC(), docID); err != nil {
+		return fmt.Errorf("failed to update document version: %w", err)
+	}
+	return nil
+}
+
+// FindDocumentByNameAndType finds an existing document by name (without ext), type, and folder
+func (r *postgresRepository) FindDocumentByNameAndType(ctx context.Context, tx pgx.Tx, docName string, docType string, folderID *uuid.UUID) (*domain.Document, error) {
+	var query string
+	var args []interface{}
+
+	if folderID == nil {
+		query = `
+			SELECT id, doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at
+			FROM docs
+			WHERE doc_name = $1 AND type = $2 AND folder_id IS NULL
+			LIMIT 1
+		`
+		args = []interface{}{docName, docType}
+	} else {
+		query = `
+			SELECT id, doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at
+			FROM docs
+			WHERE doc_name = $1 AND type = $2 AND folder_id = $3
+			LIMIT 1
+		`
+		args = []interface{}{docName, docType, folderID}
+	}
+
+	var doc domain.Document
+	// Use pool (not tx) so we can see all previously committed rows
+	err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&doc.ID, &doc.DocNo, &doc.DocName, &doc.Type,
+		&doc.FolderID, &doc.RegistrantID, &doc.Status, &doc.VersionNumber,
+		&doc.CreatedAt, &doc.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil // not found → caller will create new doc
+		}
+		return nil, fmt.Errorf("failed to find document by name and type: %w", err)
+	}
+	return &doc, nil
 }
 
 // GetAttachmentByID retrieves an attachment by its UUID (no transaction)
