@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"e-document-backend/internal/domain"
+	"github.com/google/uuid"
 )
 
 // Repository defines the interface for user data access
@@ -15,4 +16,5 @@ type Repository interface {
 	Count(ctx context.Context, search string, currentUserID string) (int, error)
 	Update(ctx context.Context, id string, user *domain.User) error
 	Delete(ctx context.Context, id string) error
+	FindByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.User, error)
 }

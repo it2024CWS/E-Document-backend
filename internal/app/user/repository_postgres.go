@@ -384,3 +384,52 @@ func (r *postgresRepository) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+// FindByDepartment retrieves all users in a specific department
+func (r *postgresRepository) FindByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.User, error) {
+	query := `
+		SELECT 
+			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
+			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
+			u.created_at, u.updated_at,
+			COALESCE(ur.role_name, '') as role_name
+		FROM users u
+		LEFT JOIN user_roles ur ON u.role_id = ur.id
+		WHERE u.department_id = $1 AND u.is_active = true
+	`
+
+	rows, err := r.pool.Query(ctx, query, deptID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find users by department: %w", err)
+	}
+	defer rows.Close()
+
+	var users []domain.User
+	for rows.Next() {
+		var user domain.User
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.Phone,
+			&user.Firstname,
+			&user.Lastname,
+			&user.Nickname,
+			&user.Password,
+			&user.RoleID,
+			&user.DepartmentID,
+			&user.SectorID,
+			&user.IsActive,
+			&user.ProfilePicture,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.RoleName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}

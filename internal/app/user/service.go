@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/google/uuid"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -24,6 +25,7 @@ type Service interface {
 	UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error)
 	UpdateProfilePicture(ctx context.Context, id string, profilePictureURL string) (*domain.UserResponse, error)
 	DeleteUser(ctx context.Context, id string) error
+	GetUsersByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.UserResponse, error)
 }
 
 // service implements the Service interface
@@ -373,4 +375,23 @@ func (s *service) DeleteUser(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// GetUsersByDepartment retrieves all users in a specific department
+func (s *service) GetUsersByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.UserResponse, error) {
+	// Create context with timeout
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	users, err := s.repo.FindByDepartment(dbCtx, deptID)
+	if err != nil {
+		return nil, util.NewDatabaseError("get users by department", err)
+	}
+
+	responses := make([]domain.UserResponse, len(users))
+	for i, user := range users {
+		responses[i] = user.ToResponse()
+	}
+
+	return responses, nil
 }

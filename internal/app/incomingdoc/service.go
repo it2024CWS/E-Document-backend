@@ -6,16 +6,20 @@ import (
 	"e-document-backend/internal/util"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Service defines the interface for incoming document business logic
 type Service interface {
-	GetAllIncomingDocs(ctx context.Context) ([]domain.IncomingDocResponse, error)
-	GetIncomingDocByID(ctx context.Context, id int) (*domain.IncomingDocResponse, error)
-	GetIncomingDocsByReceiver(ctx context.Context, receiverID string) ([]domain.IncomingDocResponse, error)
+	GetAllIncomingDocs(ctx context.Context, page, limit int) ([]domain.IncomingDocResponse, int, error)
+	GetIncomingDocByID(ctx context.Context, id uuid.UUID) (*domain.IncomingDocResponse, error)
+	GetIncomingDocsByReceiver(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDocResponse, error)
+	GetIncomingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.IncomingDocResponse, int, error)
 	GetIncomingDocsByStatus(ctx context.Context, status string) ([]domain.IncomingDocResponse, error)
 	ReceiveDocument(ctx context.Context, req domain.ReceiveDocumentRequest) (*domain.IncomingDocResponse, error)
-	ApproveDocument(ctx context.Context, id int, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error)
+	ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error)
+	CreateIncomingDocs(ctx context.Context, docID uuid.UUID, senderID *uuid.UUID, deptIDs []uuid.UUID, remark string) error
 }
 
 type service struct {
@@ -30,10 +34,11 @@ func NewService(repo Repository) Service {
 }
 
 // GetAllIncomingDocs retrieves all incoming documents
-func (s *service) GetAllIncomingDocs(ctx context.Context) ([]domain.IncomingDocResponse, error) {
-	docs, err := s.repo.FindAll(ctx)
+func (s *service) GetAllIncomingDocs(ctx context.Context, page, limit int) ([]domain.IncomingDocResponse, int, error) {
+	offset := (page - 1) * limit
+	docs, total, err := s.repo.FindAll(ctx, limit, offset)
 	if err != nil {
-		return nil, util.NewDatabaseError("get all incoming documents", err)
+		return nil, 0, util.NewDatabaseError("get all incoming documents", err)
 	}
 
 	responses := make([]domain.IncomingDocResponse, len(docs))
@@ -41,14 +46,14 @@ func (s *service) GetAllIncomingDocs(ctx context.Context) ([]domain.IncomingDocR
 		responses[i] = doc.ToResponse()
 	}
 
-	return responses, nil
+	return responses, total, nil
 }
 
 // GetIncomingDocByID retrieves an incoming document by ID
-func (s *service) GetIncomingDocByID(ctx context.Context, id int) (*domain.IncomingDocResponse, error) {
+func (s *service) GetIncomingDocByID(ctx context.Context, id uuid.UUID) (*domain.IncomingDocResponse, error) {
 	doc, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("IncomingDoc", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("IncomingDoc", id.String())
 	}
 
 	response := doc.ToResponse()
@@ -56,7 +61,7 @@ func (s *service) GetIncomingDocByID(ctx context.Context, id int) (*domain.Incom
 }
 
 // GetIncomingDocsByReceiver retrieves incoming documents by receiver ID
-func (s *service) GetIncomingDocsByReceiver(ctx context.Context, receiverID string) ([]domain.IncomingDocResponse, error) {
+func (s *service) GetIncomingDocsByReceiver(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDocResponse, error) {
 	docs, err := s.repo.FindByReceiverID(ctx, receiverID)
 	if err != nil {
 		return nil, util.NewDatabaseError("get incoming documents by receiver", err)
@@ -68,6 +73,22 @@ func (s *service) GetIncomingDocsByReceiver(ctx context.Context, receiverID stri
 	}
 
 	return responses, nil
+}
+
+// GetIncomingDocsByDepartment retrieves incoming documents by department ID
+func (s *service) GetIncomingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.IncomingDocResponse, int, error) {
+	offset := (page - 1) * limit
+	docs, total, err := s.repo.FindByDepartmentID(ctx, deptID, limit, offset)
+	if err != nil {
+		return nil, 0, util.NewDatabaseError("get incoming documents by department", err)
+	}
+
+	responses := make([]domain.IncomingDocResponse, len(docs))
+	for i, doc := range docs {
+		responses[i] = doc.ToResponse()
+	}
+
+	return responses, total, nil
 }
 
 // GetIncomingDocsByStatus retrieves incoming documents by status
@@ -125,7 +146,7 @@ func (s *service) ReceiveDocument(ctx context.Context, req domain.ReceiveDocumen
 }
 
 // ApproveDocument approves an incoming document
-func (s *service) ApproveDocument(ctx context.Context, id int, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error) {
+func (s *service) ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error) {
 	// Validate request
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
@@ -134,7 +155,7 @@ func (s *service) ApproveDocument(ctx context.Context, id int, req domain.Approv
 	// Find the incoming document
 	doc, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("IncomingDoc", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("IncomingDoc", id.String())
 	}
 
 	// Update fields
@@ -161,4 +182,23 @@ func (s *service) ApproveDocument(ctx context.Context, id int, req domain.Approv
 
 	response := updatedDoc.ToResponse()
 	return &response, nil
+}
+
+func (s *service) CreateIncomingDocs(ctx context.Context, docID uuid.UUID, senderID *uuid.UUID, deptIDs []uuid.UUID, remark string) error {
+	for _, deptID := range deptIDs {
+		deptUUID := deptID
+		doc := &domain.IncomingDoc{
+			IncomingNo:   util.GenerateIncomingNumber(),
+			DocID:        docID,
+			SenderID:     senderID,
+			DepartmentID: &deptUUID,
+			Status:       domain.IncomingStatusPending,
+			Remark:       remark,
+			CreatedAt:    time.Now(),
+		}
+		if err := s.repo.Create(ctx, doc); err != nil {
+			return err
+		}
+	}
+	return nil
 }

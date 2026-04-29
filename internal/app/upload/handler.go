@@ -190,6 +190,7 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 	ownerIDStr := upload.MetaData["owner_id"]
 	parentFolderIDStr := upload.MetaData["parent_folder_id"]
 	fileType := upload.MetaData["file_type"]
+	targetModule := upload.MetaData["target_module"]
 
 	// actualFileName คือชื่อไฟล์จริงที่ tusd รับมาจาก Upload-Metadata "filename"
 	// (tusd decode base64 ให้อัตโนมัติ) — ใช้สำหรับค้นหาและบันทึกเอกสาร
@@ -266,6 +267,8 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 		FileSize:       upload.Size,
 		FileType:       fileType,
 		UploadID:       upload.ID,
+		TargetModule:   targetModule,
+		ExtraMetadata:  upload.MetaData,
 	}
 
 	result, err := h.service.ProcessUploadComplete(ctx, params)

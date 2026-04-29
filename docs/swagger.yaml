@@ -1,11 +1,12 @@
 basePath: /api
 definitions:
-  e-document-backend_internal_domain.ApproveIncomingDocRequest:
+  e-document-backend_internal_domain.ApproveDocumentRequest:
     properties:
-      approved:
-        description: true = approved, false = rejected
-        type: boolean
+      approver_id:
+        type: string
       remark:
+        type: string
+      status:
         type: string
     type: object
   e-document-backend_internal_domain.AuthResponse:
@@ -225,6 +226,8 @@ definitions:
         type: string
       created_at:
         type: string
+      dept_id:
+        type: string
       doc_id:
         type: string
       doc_name:
@@ -276,6 +279,8 @@ definitions:
     properties:
       created_at:
         type: string
+      dept_id:
+        type: string
       doc_id:
         type: string
       doc_name:
@@ -284,6 +289,10 @@ definitions:
         type: string
       id:
         type: string
+      incoming_docs:
+        items:
+          $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+        type: array
       outgoing_no:
         type: string
       user_id:
@@ -439,6 +448,8 @@ definitions:
       doc_id:
         type: string
       doc_path:
+        type: string
+      folder_id:
         type: string
       id:
         type: string
@@ -1604,11 +1615,11 @@ paths:
       - application/json
       description: Get incoming document details by ID
       parameters:
-      - description: Incoming Document ID
+      - description: Incoming Document ID (UUID)
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1640,17 +1651,17 @@ paths:
       - application/json
       description: Approve or reject an incoming document (by department head or director)
       parameters:
-      - description: Incoming Document ID
+      - description: Incoming Document ID (UUID)
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Approval data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/e-document-backend_internal_domain.ApproveIncomingDocRequest'
+          $ref: '#/definitions/e-document-backend_internal_domain.ApproveDocumentRequest'
       produces:
       - application/json
       responses:
@@ -1686,11 +1697,11 @@ paths:
       - application/json
       description: Mark an incoming document as received (by secretary)
       parameters:
-      - description: Incoming Document ID
+      - description: Incoming Document ID (UUID)
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       - description: Receive data
         in: body
         name: request
@@ -1724,6 +1735,44 @@ paths:
       security:
       - BearerAuth: []
       summary: Receive incoming document
+      tags:
+      - incoming-docs
+  /v1/incoming-docs/department/{deptId}:
+    get:
+      consumes:
+      - application/json
+      description: Get incoming documents assigned to a specific department (UUID)
+      parameters:
+      - description: Department UUID
+        in: path
+        name: deptId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get incoming documents by department
       tags:
       - incoming-docs
   /v1/incoming-docs/receiver/{receiverId}:
@@ -1876,11 +1925,11 @@ paths:
       - application/json
       description: Get outgoing document details by ID
       parameters:
-      - description: Outgoing Document ID
+      - description: Outgoing Document ID (UUID)
         in: path
         name: id
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1904,6 +1953,44 @@ paths:
       security:
       - BearerAuth: []
       summary: Get outgoing document by ID
+      tags:
+      - outgoing-docs
+  /v1/outgoing-docs/department/{deptId}:
+    get:
+      consumes:
+      - application/json
+      description: Get outgoing documents for a specific department
+      parameters:
+      - description: Department UUID
+        in: path
+        name: deptId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/e-document-backend_internal_util.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/e-document-backend_internal_domain.OutgoingDocResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/e-document-backend_internal_util.Response'
+      security:
+      - BearerAuth: []
+      summary: Get outgoing documents by department
       tags:
       - outgoing-docs
   /v1/outgoing-docs/user/{userId}:

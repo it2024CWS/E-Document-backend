@@ -96,7 +96,7 @@ func (h *Handler) GetAllDocuments(c echo.Context) error {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			id	path		string	true	"Document ID"
-//	@Success		200	{object}	util.Response{data=domain.DocumentDetailResponse}
+//	@Success		200	{object}	util.Response{data=domain.DocumentResponse}
 //	@Failure		401	{object}	util.Response
 //	@Failure		404	{object}	util.Response
 //	@Router			/v1/documents/{id} [get]

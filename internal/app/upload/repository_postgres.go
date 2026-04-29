@@ -105,8 +105,8 @@ func (r *postgresRepository) GetFolderByID(ctx context.Context, folderID int) (*
 // CreateDocument inserts a new document and populates doc.ID
 func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.Document) error {
 	query := `
-		INSERT INTO docs (doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO docs (doc_no, doc_name, doc_path, type, folder_id, registrant_id, status, version_number, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at, updated_at
 	`
 	now := time.Now().UTC()
@@ -116,6 +116,7 @@ func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc 
 	return tx.QueryRow(ctx, query,
 		doc.DocNo,
 		doc.DocName,
+		doc.DocPath,
 		doc.Type,
 		doc.FolderID,
 		doc.RegistrantID,
@@ -186,8 +187,8 @@ func (r *postgresRepository) SetPreviousVersionsNotCurrent(ctx context.Context, 
 
 // UpdateDocumentVersion updates only the version_number of an existing document (path lives in versions table)
 func (r *postgresRepository) UpdateDocumentVersion(ctx context.Context, tx pgx.Tx, docID uuid.UUID, newVersionNumber int, newDocPath string) error {
-	query := `UPDATE docs SET version_number = $1, updated_at = $2 WHERE id = $3`
-	if _, err := tx.Exec(ctx, query, newVersionNumber, time.Now().UTC(), docID); err != nil {
+	query := `UPDATE docs SET version_number = $1, doc_path = $2, updated_at = $3 WHERE id = $4`
+	if _, err := tx.Exec(ctx, query, newVersionNumber, newDocPath, time.Now().UTC(), docID); err != nil {
 		return fmt.Errorf("failed to update document version: %w", err)
 	}
 	return nil
@@ -200,7 +201,7 @@ func (r *postgresRepository) FindDocumentByNameAndType(ctx context.Context, tx p
 
 	if folderID == nil {
 		query = `
-			SELECT id, doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at
+			SELECT id, doc_no, doc_name, doc_path, type, folder_id, registrant_id, status, version_number, created_at, updated_at
 			FROM docs
 			WHERE doc_name = $1 AND type = $2 AND folder_id IS NULL
 			LIMIT 1
@@ -208,7 +209,7 @@ func (r *postgresRepository) FindDocumentByNameAndType(ctx context.Context, tx p
 		args = []interface{}{docName, docType}
 	} else {
 		query = `
-			SELECT id, doc_no, doc_name, type, folder_id, registrant_id, status, version_number, created_at, updated_at
+			SELECT id, doc_no, doc_name, doc_path, type, folder_id, registrant_id, status, version_number, created_at, updated_at
 			FROM docs
 			WHERE doc_name = $1 AND type = $2 AND folder_id = $3
 			LIMIT 1
@@ -219,7 +220,7 @@ func (r *postgresRepository) FindDocumentByNameAndType(ctx context.Context, tx p
 	var doc domain.Document
 	// Use pool (not tx) so we can see all previously committed rows
 	err := r.pool.QueryRow(ctx, query, args...).Scan(
-		&doc.ID, &doc.DocNo, &doc.DocName, &doc.Type,
+		&doc.ID, &doc.DocNo, &doc.DocName, &doc.DocPath, &doc.Type,
 		&doc.FolderID, &doc.RegistrantID, &doc.Status, &doc.VersionNumber,
 		&doc.CreatedAt, &doc.UpdatedAt,
 	)

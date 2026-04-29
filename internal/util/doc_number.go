@@ -1,17 +1,22 @@
 package util
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"time"
 )
 
 // GenerateDocNumber generates a document number with LAL prefix and timestamp
-// Format: LAL + DDMMYYYYHHMM (e.g., LAL130220260008 = 13/02/2026 00:08)
+// Format: PREFIX + DDMMYYYYHHMMSS + XXX (Random)
 func GenerateDocNumber(prefix string) string {
 	now := time.Now()
-	// Format: DDMMYYYYHHMM
-	timestamp := now.Format("020120061504") // Day Month Year Hour Minute - Fixed format layout
-	return fmt.Sprintf("%s%s", prefix, timestamp)
+	// Format: DDMMYYYYHHMMSS
+	timestamp := now.Format("02012006150405")
+	
+	// Add 3 random digits to ensure uniqueness within the same second
+	randomNum, _ := rand.Int(rand.Reader, big.NewInt(1000))
+	return fmt.Sprintf("%s%s%03d", prefix, timestamp, randomNum)
 }
 
 // GenerateLALDocNumber generates a document number with LAL prefix

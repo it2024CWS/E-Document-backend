@@ -181,7 +181,7 @@ func main() {
 
 	// Initialize outgoingdoc module
 	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
-	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo)
+	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocRepo)
 	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
 
 	// Initialize document module
@@ -196,7 +196,7 @@ func main() {
 
 	// Initialize upload module
 	uploadRepo := upload.NewPostgresRepository(pgClient.Pool)
-	uploadService := upload.NewService(uploadRepo)
+	uploadService := upload.NewService(uploadRepo, incomingdocService, outgoingdocService, userService)
 	tusConfig := upload.LoadTusConfigFromEnv()
 	uploadHandler, err := upload.NewHandler(uploadService, tusConfig)
 	if err != nil {

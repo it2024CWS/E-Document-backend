@@ -33,7 +33,7 @@ type joinedDocScan struct {
 	SectorName      *string
 }
 
-func buildDocResponse(row *joinedDocScan) domain.DocumentDetailResponse {
+func buildDocResponse(row *joinedDocScan) domain.DocumentResponse {
 	resp := row.Document.ToResponse()
 	if row.DocTypeName != nil {
 		resp.DocTypeName = *row.DocTypeName
@@ -68,7 +68,7 @@ func buildDocResponse(row *joinedDocScan) domain.DocumentDetailResponse {
 	if row.SectorName != nil {
 		resp.SectorName = *row.SectorName
 	}
-	return domain.DocumentDetailResponse{DocumentResponse: resp}
+	return resp
 }
 
 const joinedDocSelect = `
@@ -94,8 +94,11 @@ const joinedDocSelect = `
 func scanJoinedDoc(row pgx.Row) (*joinedDocScan, error) {
 	var s joinedDocScan
 	var desc sql.NullString
+	var docPath sql.NullString
+	var docType sql.NullString
+
 	err := row.Scan(
-		&s.ID, &s.DocNo, &s.DocName, &s.DocPath, &s.Type, &s.DocTypeID, &s.FolderID,
+		&s.ID, &s.DocNo, &s.DocName, &docPath, &docType, &s.DocTypeID, &s.FolderID,
 		&s.RegistrantID, &s.Status, &s.VersionNumber, &desc, &s.SendToDirector,
 		&s.CreatedAt, &s.UpdatedAt,
 		&s.DocTypeName, &s.FolderName,
@@ -104,6 +107,12 @@ func scanJoinedDoc(row pgx.Row) (*joinedDocScan, error) {
 	)
 	if desc.Valid {
 		s.Description = &desc.String
+	}
+	if docPath.Valid {
+		s.DocPath = docPath.String
+	}
+	if docType.Valid {
+		s.Type = docType.String
 	}
 	return &s, err
 }
@@ -121,8 +130,10 @@ func (r *postgresRepository) FindAll(ctx context.Context, userID string) ([]doma
 	for rows.Next() {
 		var s joinedDocScan
 		var desc sql.NullString
+		var docPath sql.NullString
+		var docType sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.DocNo, &s.DocName, &s.DocPath, &s.Type, &s.DocTypeID, &s.FolderID,
+			&s.ID, &s.DocNo, &s.DocName, &docPath, &docType, &s.DocTypeID, &s.FolderID,
 			&s.RegistrantID, &s.Status, &s.VersionNumber, &desc, &s.SendToDirector,
 			&s.CreatedAt, &s.UpdatedAt,
 			&s.DocTypeName, &s.FolderName,
@@ -134,13 +145,19 @@ func (r *postgresRepository) FindAll(ctx context.Context, userID string) ([]doma
 		if desc.Valid {
 			s.Description = &desc.String
 		}
+		if docPath.Valid {
+			s.DocPath = docPath.String
+		}
+		if docType.Valid {
+			s.Type = docType.String
+		}
 		documents = append(documents, s.Document)
 	}
 
 	return documents, nil
 }
 
-// FindAllJoined returns full DocumentResponse list with joined fields
+// FindAllJoined returns full DocumentResponse with joined fields
 func (r *postgresRepository) FindAllJoined(ctx context.Context) ([]domain.DocumentResponse, error) {
 	query := joinedDocSelect + ` ORDER BY d.created_at DESC`
 
@@ -154,8 +171,10 @@ func (r *postgresRepository) FindAllJoined(ctx context.Context) ([]domain.Docume
 	for rows.Next() {
 		var s joinedDocScan
 		var desc sql.NullString
+		var docPath sql.NullString
+		var docType sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.DocNo, &s.DocName, &s.DocPath, &s.Type, &s.DocTypeID, &s.FolderID,
+			&s.ID, &s.DocNo, &s.DocName, &docPath, &docType, &s.DocTypeID, &s.FolderID,
 			&s.RegistrantID, &s.Status, &s.VersionNumber, &desc, &s.SendToDirector,
 			&s.CreatedAt, &s.UpdatedAt,
 			&s.DocTypeName, &s.FolderName,
@@ -167,14 +186,20 @@ func (r *postgresRepository) FindAllJoined(ctx context.Context) ([]domain.Docume
 		if desc.Valid {
 			s.Description = &desc.String
 		}
-		responses = append(responses, buildDocResponse(&s).DocumentResponse)
+		if docPath.Valid {
+			s.DocPath = docPath.String
+		}
+		if docType.Valid {
+			s.Type = docType.String
+		}
+		responses = append(responses, buildDocResponse(&s))
 	}
 
 	return responses, nil
 }
 
-// FindByIDJoined returns a DocumentDetailResponse with all joined fields for a single doc
-func (r *postgresRepository) FindByIDJoined(ctx context.Context, id uuid.UUID) (*domain.DocumentDetailResponse, error) {
+// FindByIDJoined returns a DocumentResponse with all joined fields for a single doc
+func (r *postgresRepository) FindByIDJoined(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error) {
 	query := joinedDocSelect + ` WHERE d.id = $1`
 
 	s, err := scanJoinedDoc(r.pool.QueryRow(ctx, query, id))
@@ -202,8 +227,10 @@ func (r *postgresRepository) FindByFolderIDJoined(ctx context.Context, folderID 
 	for rows.Next() {
 		var s joinedDocScan
 		var desc sql.NullString
+		var docPath sql.NullString
+		var docType sql.NullString
 		if err := rows.Scan(
-			&s.ID, &s.DocNo, &s.DocName, &s.DocPath, &s.Type, &s.DocTypeID, &s.FolderID,
+			&s.ID, &s.DocNo, &s.DocName, &docPath, &docType, &s.DocTypeID, &s.FolderID,
 			&s.RegistrantID, &s.Status, &s.VersionNumber, &desc, &s.SendToDirector,
 			&s.CreatedAt, &s.UpdatedAt,
 			&s.DocTypeName, &s.FolderName,
@@ -215,7 +242,13 @@ func (r *postgresRepository) FindByFolderIDJoined(ctx context.Context, folderID 
 		if desc.Valid {
 			s.Description = &desc.String
 		}
-		responses = append(responses, buildDocResponse(&s).DocumentResponse)
+		if docPath.Valid {
+			s.DocPath = docPath.String
+		}
+		if docType.Valid {
+			s.Type = docType.String
+		}
+		responses = append(responses, buildDocResponse(&s))
 	}
 
 	return responses, nil
@@ -231,13 +264,21 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domai
 
 	var doc domain.Document
 	var desc sql.NullString
+	var docPath sql.NullString
+	var docType sql.NullString
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&doc.ID, &doc.DocNo, &doc.DocName, &doc.DocPath, &doc.Type, &doc.DocTypeID, &doc.FolderID,
+		&doc.ID, &doc.DocNo, &doc.DocName, &docPath, &docType, &doc.DocTypeID, &doc.FolderID,
 		&doc.RegistrantID, &doc.Status, &doc.VersionNumber, &desc, &doc.SendToDirector,
 		&doc.CreatedAt, &doc.UpdatedAt,
 	)
 	if desc.Valid {
 		doc.Description = &desc.String
+	}
+	if docPath.Valid {
+		doc.DocPath = docPath.String
+	}
+	if docType.Valid {
+		doc.Type = docType.String
 	}
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("document not found")
@@ -268,8 +309,10 @@ func (r *postgresRepository) FindByFolderID(ctx context.Context, folderID uuid.U
 	for rows.Next() {
 		var doc domain.Document
 		var desc sql.NullString
+		var docPath sql.NullString
+		var docType sql.NullString
 		if err := rows.Scan(
-			&doc.ID, &doc.DocNo, &doc.DocName, &doc.DocPath, &doc.Type, &doc.DocTypeID, &doc.FolderID,
+			&doc.ID, &doc.DocNo, &doc.DocName, &docPath, &docType, &doc.DocTypeID, &doc.FolderID,
 			&doc.RegistrantID, &doc.Status, &doc.VersionNumber, &desc, &doc.SendToDirector,
 			&doc.CreatedAt, &doc.UpdatedAt,
 		); err != nil {
@@ -277,6 +320,12 @@ func (r *postgresRepository) FindByFolderID(ctx context.Context, folderID uuid.U
 		}
 		if desc.Valid {
 			doc.Description = &desc.String
+		}
+		if docPath.Valid {
+			doc.DocPath = docPath.String
+		}
+		if docType.Valid {
+			doc.Type = docType.String
 		}
 		documents = append(documents, doc)
 	}
@@ -293,11 +342,23 @@ func (r *postgresRepository) FindByDocNo(ctx context.Context, docNo string) (*do
 	`
 
 	var doc domain.Document
+	var desc sql.NullString
+	var docPath sql.NullString
+	var docType sql.NullString
 	err := r.pool.QueryRow(ctx, query, docNo).Scan(
-		&doc.ID, &doc.DocNo, &doc.DocName, &doc.DocPath, &doc.Type, &doc.DocTypeID, &doc.FolderID,
-		&doc.RegistrantID, &doc.Status, &doc.VersionNumber, &doc.Description, &doc.SendToDirector,
+		&doc.ID, &doc.DocNo, &doc.DocName, &docPath, &docType, &doc.DocTypeID, &doc.FolderID,
+		&doc.RegistrantID, &doc.Status, &doc.VersionNumber, &desc, &doc.SendToDirector,
 		&doc.CreatedAt, &doc.UpdatedAt,
 	)
+	if desc.Valid {
+		doc.Description = &desc.String
+	}
+	if docPath.Valid {
+		doc.DocPath = docPath.String
+	}
+	if docType.Valid {
+		doc.Type = docType.String
+	}
 	if err == pgx.ErrNoRows {
 		return nil, nil // Not found is not an error for checking existence
 	}
@@ -372,14 +433,14 @@ func (r *postgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (r *postgresRepository) CreateVersion(ctx context.Context, version *domain.Version) error {
 	query := `
-		INSERT INTO versions (doc_id, folder_id, version_number, doc_path, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO versions (doc_id, version_number, doc_path, created_at)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at
 	`
 
 	version.CreatedAt = time.Now()
 
-	err := r.pool.QueryRow(ctx, query, version.DocID, version.FolderID, version.VersionNumber, version.DocPath, version.CreatedAt).
+	err := r.pool.QueryRow(ctx, query, version.DocID, version.VersionNumber, version.DocPath, version.CreatedAt).
 		Scan(&version.ID, &version.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create version: %w", err)
@@ -390,7 +451,7 @@ func (r *postgresRepository) CreateVersion(ctx context.Context, version *domain.
 
 func (r *postgresRepository) GetVersionsByDocID(ctx context.Context, docID uuid.UUID) ([]domain.Version, error) {
 	query := `
-		SELECT id, doc_id, folder_id, version_number, doc_path, created_at
+		SELECT id, doc_id, version_number, doc_path, created_at
 		FROM versions
 		WHERE doc_id = $1
 		ORDER BY version_number DESC
@@ -405,7 +466,7 @@ func (r *postgresRepository) GetVersionsByDocID(ctx context.Context, docID uuid.
 	var versions []domain.Version
 	for rows.Next() {
 		var v domain.Version
-		if err := rows.Scan(&v.ID, &v.DocID, &v.FolderID, &v.VersionNumber, &v.DocPath, &v.CreatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.DocID, &v.VersionNumber, &v.DocPath, &v.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan version: %w", err)
 		}
 		versions = append(versions, v)

@@ -14,7 +14,7 @@ import (
 // Service defines the interface for document business logic
 type Service interface {
 	GetAllDocuments(ctx context.Context, userID string) ([]domain.DocumentResponse, error)
-	GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentDetailResponse, error)
+	GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error)
 	GetDocumentsByFolder(ctx context.Context, folderID uuid.UUID) ([]domain.DocumentResponse, error)
 	CreateDocument(ctx context.Context, userID string, req domain.CreateDocumentRequest) (*domain.DocumentResponse, error)
 	UpdateDocument(ctx context.Context, id uuid.UUID, req domain.UpdateDocumentRequest) (*domain.DocumentResponse, error)
@@ -47,23 +47,12 @@ func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.
 	return responses, nil
 }
 
-// GetDocumentByID retrieves a document by ID with joined fields and its versions
-func (s *service) GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentDetailResponse, error) {
+// GetDocumentByID retrieves a document by ID with joined fields
+func (s *service) GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error) {
 	doc, err := s.repo.FindByIDJoined(ctx, id)
 	if err != nil {
 		return nil, util.NewNotFoundError("Document", id.String())
 	}
-
-	// Attach versions
-	versions, err := s.repo.GetVersionsByDocID(ctx, id)
-	if err == nil {
-		responses := make([]domain.VersionResponse, len(versions))
-		for i, v := range versions {
-			responses[i] = v.ToResponse()
-		}
-		doc.Versions = responses
-	}
-
 	return doc, nil
 }
 
@@ -112,13 +101,8 @@ func (s *service) CreateDocument(ctx context.Context, userID string, req domain.
 		return nil, util.NewDatabaseError("create document", err)
 	}
 
-	// Return joined response (unwrap to DocumentResponse since it's a new doc with no versions)
-	detail, err := s.repo.FindByIDJoined(ctx, doc.ID)
-	if err != nil {
-		return nil, util.NewDatabaseError("fetch created document", err)
-	}
-	resp := detail.DocumentResponse
-	return &resp, nil
+	// Return joined response
+	return s.repo.FindByIDJoined(ctx, doc.ID)
 }
 
 // UpdateDocument updates a document
@@ -139,7 +123,6 @@ func (s *service) UpdateDocument(ctx context.Context, id uuid.UUID, req domain.U
 		// Archive current version
 		version := &domain.Version{
 			DocID:         existingDoc.ID,
-			FolderID:      existingDoc.FolderID,
 			VersionNumber: existingDoc.VersionNumber,
 			DocPath:       existingDoc.DocPath,
 		}

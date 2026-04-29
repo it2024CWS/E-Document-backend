@@ -2,6 +2,9 @@ package upload
 
 import (
 	"context"
+	"e-document-backend/internal/app/incomingdoc"
+	"e-document-backend/internal/app/outgoingdoc"
+	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"fmt"
@@ -29,13 +32,15 @@ type Service interface {
 
 // ProcessUploadParams contains parameters for processing an upload
 type ProcessUploadParams struct {
-	RelativePath   string     // e.g., "Photos/2024/beach.jpg"
-	ParentFolderID *uuid.UUID // optional: if provided, use as root folder
-	OwnerID        uuid.UUID  // required: owner of the folders/documents
-	FilePath       string     // MinIO object path
-	FileSize       int64      // file size in bytes
-	FileType       string     // file MIME type
-	UploadID       string     // tusd upload ID
+	RelativePath   string            // e.g., "Photos/2024/beach.jpg"
+	ParentFolderID *uuid.UUID        // optional: if provided, use as root folder
+	OwnerID        uuid.UUID         // required: owner of the folders/documents
+	FilePath       string            // MinIO object path
+	FileSize       int64             // file size in bytes
+	FileType       string            // file MIME type
+	UploadID       string            // tusd upload ID
+	TargetModule   string            // e.g., "incoming", "outgoing"
+	ExtraMetadata  map[string]string // any extra metadata like receiver_ids
 }
 
 // ProcessUploadResult contains the result of processing an upload
@@ -47,13 +52,19 @@ type ProcessUploadResult struct {
 
 // service implements Service
 type service struct {
-	repo Repository
+	repo            Repository
+	incomingService incomingdoc.Service
+	outgoingService outgoingdoc.Service
+	userService     user.Service
 }
 
 // NewService creates a new upload service
-func NewService(repo Repository) Service {
+func NewService(repo Repository, incomingService incomingdoc.Service, outgoingService outgoingdoc.Service, userService user.Service) Service {
 	return &service{
-		repo: repo,
+		repo:            repo,
+		incomingService: incomingService,
+		outgoingService: outgoingService,
+		userService:     userService,
 	}
 }
 
@@ -152,6 +163,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		doc = &domain.Document{
 			DocNo:         docNo,
 			DocName:       titleWithoutExt,
+			DocPath:       params.FilePath,
 			Type:          docExt,
 			FolderID:      currentParentID,
 			RegistrantID:  &params.OwnerID,
@@ -247,7 +259,71 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	// -- Post-process for specific modules --
+	if params.TargetModule != "" {
+		go s.postProcessModule(ctx, params, result.Document.ID)
+	}
+
 	return result, nil
+}
+
+func (s *service) postProcessModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID) {
+	// Note: using a new context since this is a goroutine
+	bgCtx := context.Background()
+
+	switch params.TargetModule {
+	case "incoming":
+		s.handleIncomingModule(bgCtx, params, docID)
+	case "outgoing":
+		s.handleOutgoingModule(bgCtx, params, docID)
+	}
+}
+
+func (s *service) handleIncomingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID) {
+	receiverIDsStr := params.ExtraMetadata["receiver_ids"]
+	if receiverIDsStr == "" {
+		log.Warn().Str("upload_id", params.UploadID).Msg("Incoming module requested but no receiver_ids provided")
+		return
+	}
+
+	deptIDs := strings.Split(receiverIDsStr, ",")
+	deptUUIDs := make([]uuid.UUID, 0)
+
+	for _, deptIDStr := range deptIDs {
+		deptID, err := uuid.Parse(strings.TrimSpace(deptIDStr))
+		if err == nil {
+			deptUUIDs = append(deptUUIDs, deptID)
+		}
+	}
+
+	if len(deptUUIDs) == 0 {
+		log.Warn().Str("upload_id", params.UploadID).Msg("No valid department IDs resolved")
+		return
+	}
+
+	remark := params.ExtraMetadata["description"]
+	if err := s.incomingService.CreateIncomingDocs(ctx, docID, &params.OwnerID, deptUUIDs, remark); err != nil {
+		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create incoming docs")
+	}
+}
+
+func (s *service) handleOutgoingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID) {
+	// Get sender's department
+	userRes, err := s.userService.GetUserByID(ctx, params.OwnerID.String())
+	var deptID *uuid.UUID
+	if err == nil && userRes.DepartmentID != nil {
+		deptID = userRes.DepartmentID
+	}
+
+	// Create outgoing record
+	if err := s.outgoingService.CreateOutgoingDocWithParams(ctx, docID, &params.OwnerID, deptID); err != nil {
+		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create outgoing doc")
+	}
+
+	// Also create incoming records for recipients if provided
+	if receiverIDsStr := params.ExtraMetadata["receiver_ids"]; receiverIDsStr != "" {
+		s.handleIncomingModule(ctx, params, docID)
+	}
 }
 
 // parsePath splits a path string into individual parts, handling both / and \ separators

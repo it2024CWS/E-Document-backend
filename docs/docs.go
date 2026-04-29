@@ -1754,6 +1754,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/incoming-docs/department/{deptId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get incoming documents assigned to a specific department (UUID)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "incoming-docs"
+                ],
+                "summary": "Get incoming documents by department",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Department UUID",
+                        "name": "deptId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/e-document-backend_internal_domain.IncomingDocResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/incoming-docs/receiver/{receiverId}": {
             "get": {
                 "security": [
@@ -1902,8 +1966,8 @@ const docTemplate = `{
                 "summary": "Get incoming document by ID",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Incoming Document ID",
+                        "type": "string",
+                        "description": "Incoming Document ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1963,8 +2027,8 @@ const docTemplate = `{
                 "summary": "Approve/Reject incoming document",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Incoming Document ID",
+                        "type": "string",
+                        "description": "Incoming Document ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1975,7 +2039,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/e-document-backend_internal_domain.ApproveIncomingDocRequest"
+                            "$ref": "#/definitions/e-document-backend_internal_domain.ApproveDocumentRequest"
                         }
                     }
                 ],
@@ -2039,8 +2103,8 @@ const docTemplate = `{
                 "summary": "Receive incoming document",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Incoming Document ID",
+                        "type": "string",
+                        "description": "Incoming Document ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2211,6 +2275,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/outgoing-docs/department/{deptId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get outgoing documents for a specific department",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "outgoing-docs"
+                ],
+                "summary": "Get outgoing documents by department",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Department UUID",
+                        "name": "deptId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/e-document-backend_internal_domain.OutgoingDocResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/e-document-backend_internal_util.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/outgoing-docs/user/{userId}": {
             "get": {
                 "security": [
@@ -2295,8 +2423,8 @@ const docTemplate = `{
                 "summary": "Get outgoing document by ID",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Outgoing Document ID",
+                        "type": "string",
+                        "description": "Outgoing Document ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -3866,14 +3994,16 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "e-document-backend_internal_domain.ApproveIncomingDocRequest": {
+        "e-document-backend_internal_domain.ApproveDocumentRequest": {
             "type": "object",
             "properties": {
-                "approved": {
-                    "description": "true = approved, false = rejected",
-                    "type": "boolean"
+                "approver_id": {
+                    "type": "string"
                 },
                 "remark": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -4204,6 +4334,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "dept_id": {
+                    "type": "string"
+                },
                 "doc_id": {
                     "type": "string"
                 },
@@ -4278,6 +4411,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "dept_id": {
+                    "type": "string"
+                },
                 "doc_id": {
                     "type": "string"
                 },
@@ -4289,6 +4425,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "incoming_docs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/e-document-backend_internal_domain.IncomingDocResponse"
+                    }
                 },
                 "outgoing_no": {
                     "type": "string"
@@ -4523,6 +4665,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "doc_path": {
+                    "type": "string"
+                },
+                "folder_id": {
                     "type": "string"
                 },
                 "id": {
