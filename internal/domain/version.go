@@ -9,24 +9,26 @@ import (
 // Version represents a document version
 type Version struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
-	DocID         uuid.UUID  `json:"doc_id" db:"doc_id" validate:"required"`
-	FolderID      *uuid.UUID `json:"folder_id" db:"folder_id" validate:"omitempty"` // Optional (nullable)
+	DocDetailsID  uuid.UUID  `json:"doc_details_id" db:"doc_details_id" validate:"required"`
+	FolderID      *uuid.UUID `json:"folder_id" db:"folder_id" validate:"omitempty"`
 	VersionNumber int        `json:"version_number" db:"version_number" validate:"required"`
 	DocPath       string     `json:"doc_path" db:"doc_path" validate:"required"`
 	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // CreateVersionRequest represents the request body for creating a version
 type CreateVersionRequest struct {
-	DocID         uuid.UUID `json:"doc_id" validate:"required"`
-	VersionNumber int       `json:"version_number" validate:"required"`
-	DocPath       string    `json:"doc_path" validate:"required"`
+	DocDetailsID  uuid.UUID  `json:"doc_details_id" validate:"required"`
+	FolderID      *uuid.UUID `json:"folder_id"`
+	VersionNumber int        `json:"version_number" validate:"required"`
+	DocPath       string     `json:"doc_path" validate:"required"`
 }
 
 // VersionResponse represents the version response
 type VersionResponse struct {
 	ID            uuid.UUID  `json:"id"`
-	DocID         uuid.UUID  `json:"doc_id"`
+	DocDetailsID  uuid.UUID  `json:"doc_details_id"`
 	FolderID      *uuid.UUID `json:"folder_id,omitempty"`
 	VersionNumber int        `json:"version_number"`
 	DocPath       string     `json:"doc_path"`
@@ -37,7 +39,7 @@ type VersionResponse struct {
 func (v *Version) ToResponse() VersionResponse {
 	return VersionResponse{
 		ID:            v.ID,
-		DocID:         v.DocID,
+		DocDetailsID:  v.DocDetailsID,
 		FolderID:      v.FolderID,
 		VersionNumber: v.VersionNumber,
 		DocPath:       v.DocPath,

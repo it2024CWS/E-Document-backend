@@ -20,32 +20,33 @@ const (
 type IncomingDoc struct {
 	ID           uuid.UUID         `json:"id" db:"id"`
 	IncomingNo   string            `json:"incoming_no" db:"incoming_no" validate:"required"`
-	DocID        uuid.UUID         `json:"doc_id" db:"doc_id" validate:"required"`
-	SenderID     *uuid.UUID        `json:"sender_id" db:"sender_id"`
-	ReceiverID   *uuid.UUID        `json:"receiver_id" db:"receiver_id"`
-	ApproverID   *uuid.UUID        `json:"approver_id" db:"approver_id"`
+	IncomingDate *time.Time        `json:"incoming_date" db:"incoming_date"`
 	ReceivedDate *time.Time        `json:"received_date" db:"received_date"`
+	Status       IncomingDocStatus `json:"status" db:"status"`
+	DocDetailsID uuid.UUID         `json:"doc_details_id" db:"doc_details_id" validate:"required"`
+	FolderID     *uuid.UUID        `json:"folder_id" db:"folder_id"`
+	CreatedBy    *uuid.UUID        `json:"created_by" db:"created_by"`
+	UpdatedBy    *uuid.UUID        `json:"updated_by" db:"updated_by"`
+	ApproverID   *uuid.UUID        `json:"approver_id" db:"approver_id"`
 	ApproverDate *time.Time        `json:"approver_date" db:"approver_date"`
 	Remark       string            `json:"remark" db:"remark"`
-	Status       IncomingDocStatus `json:"status" db:"status"`
-	DepartmentID *uuid.UUID        `json:"dept_id" db:"dept_id"`
-	CreatedAt    time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at" db:"updated_at"`
 
 	// Joined fields
 	DocNo        string `json:"doc_no,omitempty" db:"doc_no"`
 	DocName      string `json:"doc_name,omitempty" db:"doc_name"`
 	DocPath      string `json:"doc_path,omitempty" db:"doc_path"`
-	Type         string `json:"type,omitempty" db:"type"`
-	SenderName   string `json:"sender_name,omitempty" db:"sender_name"`
-	ReceiverName string `json:"receiver_name,omitempty" db:"receiver_name"`
+	CreatorName  string `json:"creator_name,omitempty" db:"creator_name"`
+	UpdaterName  string `json:"updater_name,omitempty" db:"updater_name"`
 	ApproverName string `json:"approver_name,omitempty" db:"approver_name"`
 }
 
 // CreateIncomingDocRequest represents the request body for creating an incoming document
 type CreateIncomingDocRequest struct {
-	DocID      uuid.UUID  `json:"doc_id" validate:"required"`
-	SenderID   *uuid.UUID `json:"sender_id"`
-	ReceiverID *uuid.UUID `json:"receiver_id"`
+	DocDetailsID uuid.UUID  `json:"doc_details_id" validate:"required"`
+	FolderID     *uuid.UUID `json:"folder_id"`
+	CreatedBy    *uuid.UUID `json:"created_by"`
+	UpdatedBy    *uuid.UUID `json:"updated_by"`
 }
 
 // ReceiveIncomingDocRequest represents the request for receiving a document (by secretary)
@@ -63,23 +64,23 @@ type ApproveIncomingDocRequest struct {
 type IncomingDocResponse struct {
 	ID           uuid.UUID         `json:"id"`
 	IncomingNo   string            `json:"incoming_no"`
-	DocID        uuid.UUID         `json:"doc_id"`
+	IncomingDate *time.Time        `json:"incoming_date"`
+	ReceivedDate *time.Time        `json:"received_date"`
+	Status       IncomingDocStatus `json:"status"`
+	DocDetailsID uuid.UUID         `json:"doc_details_id"`
 	DocNo        string            `json:"doc_no,omitempty"`
 	DocName      string            `json:"doc_name,omitempty"`
 	DocPath      string            `json:"doc_path,omitempty"`
-	Type         string            `json:"type,omitempty"`
-	SenderID     *uuid.UUID        `json:"sender_id"`
-	SenderName   string            `json:"sender_name,omitempty"`
-	ReceiverID   *uuid.UUID        `json:"receiver_id"`
-	ReceiverName string            `json:"receiver_name,omitempty"`
+	FolderID     *uuid.UUID        `json:"folder_id"`
+	CreatedBy    *uuid.UUID        `json:"created_by"`
+	CreatorName  string            `json:"creator_name,omitempty"`
+	UpdatedBy    *uuid.UUID        `json:"updated_by"`
+	UpdaterName  string            `json:"updater_name,omitempty"`
 	ApproverID   *uuid.UUID        `json:"approver_id"`
 	ApproverName string            `json:"approver_name,omitempty"`
-	ReceivedDate *time.Time        `json:"received_date"`
 	ApproverDate *time.Time        `json:"approver_date"`
 	Remark       string            `json:"remark"`
-	Status       IncomingDocStatus `json:"status"`
-	DepartmentID *uuid.UUID        `json:"dept_id"`
-	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 // ToResponse converts IncomingDoc to IncomingDocResponse
@@ -87,22 +88,22 @@ func (i *IncomingDoc) ToResponse() IncomingDocResponse {
 	return IncomingDocResponse{
 		ID:           i.ID,
 		IncomingNo:   i.IncomingNo,
-		DocID:        i.DocID,
-		SenderID:     i.SenderID,
-		ReceiverID:   i.ReceiverID,
-		ApproverID:   i.ApproverID,
+		IncomingDate: i.IncomingDate,
 		ReceivedDate: i.ReceivedDate,
+		Status:       i.Status,
+		DocDetailsID: i.DocDetailsID,
+		FolderID:     i.FolderID,
+		CreatedBy:    i.CreatedBy,
+		UpdatedBy:    i.UpdatedBy,
+		ApproverID:   i.ApproverID,
 		ApproverDate: i.ApproverDate,
 		Remark:       i.Remark,
-		Status:       i.Status,
-		DepartmentID: i.DepartmentID,
-		CreatedAt:    i.CreatedAt,
+		UpdatedAt:    i.UpdatedAt,
 		DocNo:        i.DocNo,
 		DocName:      i.DocName,
 		DocPath:      i.DocPath,
-		Type:         i.Type,
-		SenderName:   i.SenderName,
-		ReceiverName: i.ReceiverName,
+		CreatorName:  i.CreatorName,
+		UpdaterName:  i.UpdaterName,
 		ApproverName: i.ApproverName,
 	}
 }

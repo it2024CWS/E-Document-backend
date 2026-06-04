@@ -8,56 +8,61 @@ import (
 
 // OutgoingDoc represents an outgoing document
 type OutgoingDoc struct {
-	ID         uuid.UUID  `json:"id" db:"id"`
-	OutgoingNo string     `json:"outgoing_no" db:"outgoing_no" validate:"required"`
-	DocID      uuid.UUID  `json:"doc_id" db:"doc_id" validate:"required"`
-	UserID       *uuid.UUID `json:"user_id" db:"user_id"`
-	DepartmentID *uuid.UUID `json:"dept_id" db:"dept_id"`
+	ID           uuid.UUID  `json:"id" db:"id"`
+	OutgoingNo   string     `json:"outgoing_no" db:"outgoing_no" validate:"required"`
+	DocDetailsID uuid.UUID  `json:"doc_details_id" db:"doc_details_id" validate:"required"`
+	FolderID     *uuid.UUID `json:"folder_id" db:"folder_id"`
+	CreatedBy    *uuid.UUID `json:"created_by" db:"created_by"`
+	UpdatedBy    *uuid.UUID `json:"updated_by" db:"updated_by"`
 	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
 
 	// Joined fields
-	DocNo      string `json:"doc_no,omitempty" db:"doc_no"`
-	DocName    string `json:"doc_name,omitempty" db:"doc_name"`
-	DocPath    string `json:"doc_path,omitempty" db:"doc_path"`
-	Type       string `json:"type,omitempty" db:"type"`
-	UserName   string `json:"user_name,omitempty" db:"user_name"`
+	DocNo       string `json:"doc_no,omitempty" db:"doc_no"`
+	DocName     string `json:"doc_name,omitempty" db:"doc_name"`
+	DocPath     string `json:"doc_path,omitempty" db:"doc_path"`
+	CreatorName string `json:"creator_name,omitempty" db:"creator_name"`
+	UpdaterName string `json:"updater_name,omitempty" db:"updater_name"`
 }
 
 // CreateOutgoingDocRequest represents the request body for creating an outgoing document
 type CreateOutgoingDocRequest struct {
-	DocID  uuid.UUID  `json:"doc_id" validate:"required"`
-	UserID *uuid.UUID `json:"user_id"`
+	DocDetailsID uuid.UUID  `json:"doc_details_id" validate:"required"`
+	FolderID     *uuid.UUID `json:"folder_id"`
+	CreatedBy    *uuid.UUID `json:"created_by"`
+	UpdatedBy    *uuid.UUID `json:"updated_by"`
 }
 
 // OutgoingDocResponse represents the outgoing document response
 type OutgoingDocResponse struct {
-	ID         uuid.UUID  `json:"id"`
-	OutgoingNo string     `json:"outgoing_no"`
-	DocID      uuid.UUID  `json:"doc_id"`
-	DocNo      string     `json:"doc_no,omitempty"`
-	DocName    string     `json:"doc_name,omitempty"`
-	DocPath    string     `json:"doc_path,omitempty"`
-	Type       string     `json:"type,omitempty"`
-	UserID       *uuid.UUID `json:"user_id"`
-	UserName     string     `json:"user_name,omitempty"`
-	DepartmentID *uuid.UUID           `json:"dept_id"`
-	CreatedAt    time.Time           `json:"created_at"`
+	ID           uuid.UUID             `json:"id"`
+	OutgoingNo   string                `json:"outgoing_no"`
+	DocDetailsID uuid.UUID             `json:"doc_details_id"`
+	DocNo        string                `json:"doc_no,omitempty"`
+	DocName      string                `json:"doc_name,omitempty"`
+	DocPath      string                `json:"doc_path,omitempty"`
+	FolderID     *uuid.UUID            `json:"folder_id"`
+	CreatedBy    *uuid.UUID            `json:"created_by"`
+	CreatorName  string                `json:"creator_name,omitempty"`
+	UpdatedBy    *uuid.UUID            `json:"updated_by"`
+	UpdaterName  string                `json:"updater_name,omitempty"`
+	CreatedAt    time.Time             `json:"created_at"`
 	IncomingDocs []IncomingDocResponse `json:"incoming_docs,omitempty"`
 }
 
 // ToResponse converts OutgoingDoc to OutgoingDocResponse
 func (o *OutgoingDoc) ToResponse() OutgoingDocResponse {
 	return OutgoingDocResponse{
-		ID:         o.ID,
-		OutgoingNo: o.OutgoingNo,
-		DocID:      o.DocID,
-		UserID:       o.UserID,
-		DepartmentID: o.DepartmentID,
+		ID:           o.ID,
+		OutgoingNo:   o.OutgoingNo,
+		DocDetailsID: o.DocDetailsID,
+		FolderID:     o.FolderID,
+		CreatedBy:    o.CreatedBy,
+		UpdatedBy:    o.UpdatedBy,
 		CreatedAt:    o.CreatedAt,
-		DocNo:      o.DocNo,
-		DocName:    o.DocName,
-		DocPath:    o.DocPath,
-		Type:       o.Type,
-		UserName:   o.UserName,
+		DocNo:        o.DocNo,
+		DocName:      o.DocName,
+		DocPath:      o.DocPath,
+		CreatorName:  o.CreatorName,
+		UpdaterName:  o.UpdaterName,
 	}
 }

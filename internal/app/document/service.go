@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Service defines the interface for document business logic
 type Service interface {
 	GetAllDocuments(ctx context.Context, userID string) ([]domain.DocumentResponse, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error)
@@ -29,7 +28,6 @@ type service struct {
 	outgoingRepo outgoingdoc.Repository
 }
 
-// NewService creates a new document service
 func NewService(repo Repository, incomingRepo incomingdoc.Repository, outgoingRepo outgoingdoc.Repository) Service {
 	return &service{
 		repo:         repo,
@@ -38,7 +36,6 @@ func NewService(repo Repository, incomingRepo incomingdoc.Repository, outgoingRe
 	}
 }
 
-// GetAllDocuments retrieves all documents with joined fields
 func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.DocumentResponse, error) {
 	responses, err := s.repo.FindAllJoined(ctx)
 	if err != nil {
@@ -47,7 +44,6 @@ func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.
 	return responses, nil
 }
 
-// GetDocumentByID retrieves a document by ID with joined fields
 func (s *service) GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error) {
 	doc, err := s.repo.FindByIDJoined(ctx, id)
 	if err != nil {
@@ -56,7 +52,6 @@ func (s *service) GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.Do
 	return doc, nil
 }
 
-// GetDocumentsByFolder retrieves documents by folder ID with joined fields
 func (s *service) GetDocumentsByFolder(ctx context.Context, folderID uuid.UUID) ([]domain.DocumentResponse, error) {
 	responses, err := s.repo.FindByFolderIDJoined(ctx, folderID)
 	if err != nil {
@@ -68,27 +63,26 @@ func (s *service) GetDocumentsByFolder(ctx context.Context, folderID uuid.UUID) 
 	return responses, nil
 }
 
-// CreateDocument creates a new document
 func (s *service) CreateDocument(ctx context.Context, userID string, req domain.CreateDocumentRequest) (*domain.DocumentResponse, error) {
-	// Validate request
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
-	// Generate document number using LAL format
 	docNo := util.GenerateLALDocNumber()
 
-	// Parse caller UUID for registrant_id
-	registrantID := parseUserUUID(userID)
+	var userUUID *uuid.UUID
+	if userID != "" {
+		id, err := uuid.Parse(userID)
+		if err == nil {
+			userUUID = &id
+		}
+	}
 
-	// Create document object
-	doc := &domain.Document{
+	doc := &domain.DocDetails{
 		DocNo:         docNo,
 		DocName:       req.DocName,
-		DocPath:       req.DocPath,
 		DocTypeID:     req.DocTypeID,
-		FolderID:      req.FolderID,
-		RegistrantID:  registrantID,
+		UserID:        userUUID,
 		Status:        domain.StatusNone,
 		VersionNumber: 1,
 	}
@@ -96,80 +90,47 @@ func (s *service) CreateDocument(ctx context.Context, userID string, req domain.
 		doc.Description = &req.Description
 	}
 
-	// Save to database
 	if err := s.repo.Create(ctx, doc); err != nil {
 		return nil, util.NewDatabaseError("create document", err)
 	}
 
-	// Return joined response
 	return s.repo.FindByIDJoined(ctx, doc.ID)
 }
 
-// UpdateDocument updates a document
 func (s *service) UpdateDocument(ctx context.Context, id uuid.UUID, req domain.UpdateDocumentRequest) (*domain.DocumentResponse, error) {
-	// Validate request
 	if err := util.ValidateStruct(&req); err != nil {
 		return nil, err
 	}
 
-	// Check if document exists
 	existingDoc, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, util.NewNotFoundError("Document", id.String())
 	}
 
-	// Handle Versioning if File changes
-	if req.DocPath != "" && req.DocPath != existingDoc.DocPath {
-		// Archive current version
-		version := &domain.Version{
-			DocID:         existingDoc.ID,
-			VersionNumber: existingDoc.VersionNumber,
-			DocPath:       existingDoc.DocPath,
-		}
-		if err := s.repo.CreateVersion(ctx, version); err != nil {
-			return nil, util.NewDatabaseError("create version", err)
-		}
-
-		// Increment version number and update path
-		existingDoc.VersionNumber++
-		existingDoc.DocPath = req.DocPath
-	}
-
-	// Update fields if provided
 	if req.DocName != "" {
 		existingDoc.DocName = req.DocName
 	}
 	if req.DocTypeID != nil {
 		existingDoc.DocTypeID = req.DocTypeID
 	}
-	if req.FolderID != nil {
-		existingDoc.FolderID = req.FolderID
-	}
 	if req.Description != "" {
 		existingDoc.Description = &req.Description
 	} else {
 		existingDoc.Description = nil
 	}
-	if req.SendToDirector != nil {
-		existingDoc.SendToDirector = *req.SendToDirector
-	}
 
-	// Update in database
 	if err := s.repo.Update(ctx, id, existingDoc); err != nil {
 		return nil, util.NewDatabaseError("update document", err)
 	}
 
-	// Fetch updated document
-	updatedDoc, err := s.repo.FindByID(ctx, id)
+	updatedDoc, err := s.repo.FindByIDJoined(ctx, id)
 	if err != nil {
 		return nil, util.NewDatabaseError("get updated document", err)
 	}
 
-	response := updatedDoc.ToResponse()
-	return &response, nil
+	return updatedDoc, nil
 }
 
-// GetDocumentVersions retrieves versions of a document
 func (s *service) GetDocumentVersions(ctx context.Context, id uuid.UUID) ([]domain.VersionResponse, error) {
 	versions, err := s.repo.GetVersionsByDocID(ctx, id)
 	if err != nil {
@@ -184,7 +145,6 @@ func (s *service) GetDocumentVersions(ctx context.Context, id uuid.UUID) ([]doma
 	return responses, nil
 }
 
-// DeleteDocument deletes a document
 func (s *service) DeleteDocument(ctx context.Context, id uuid.UUID) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return util.NewNotFoundError("Document", id.String())
@@ -197,57 +157,44 @@ func (s *service) DeleteDocument(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// SendDocument sends a document to a receiver (internal routing)
 func (s *service) SendDocument(ctx context.Context, userID string, id uuid.UUID, req domain.SendDocumentRequest) error {
-	// Validate request
 	if err := util.ValidateStruct(&req); err != nil {
 		return err
 	}
 
-	// Check if document exists
 	doc, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return util.NewNotFoundError("Document", id.String())
 	}
 
-	// Parse User ID
-	senderUUID, err := util.ParseUUID(userID)
+	senderUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return util.NewInvalidInputError("user_id", "invalid UUID format")
 	}
 
-	// Parse Receiver ID
-	receiverUUID, err := util.ParseUUID(req.ReceiverID)
-	if err != nil {
-		return util.NewInvalidInputError("receiver_id", "invalid UUID format")
-	}
-
-	// Create Outgoing Doc Record
 	outgoing := &domain.OutgoingDoc{
-		OutgoingNo: util.GenerateOutgoingNumber(),
-		DocID:      doc.ID,
-		UserID:     &senderUUID,
-		CreatedAt:  time.Now(),
+		OutgoingNo:   util.GenerateOutgoingNumber(),
+		DocDetailsID: doc.ID,
+		CreatedBy:    &senderUUID,
+		CreatedAt:    time.Now(),
 	}
 	if err := s.outgoingRepo.Create(ctx, outgoing); err != nil {
 		return util.NewDatabaseError("create outgoing document", err)
 	}
 
-	// Create Incoming Doc Record
 	incoming := &domain.IncomingDoc{
-		IncomingNo: util.GenerateIncomingNumber(),
-		DocID:      doc.ID,
-		SenderID:   &senderUUID,
-		ReceiverID: &receiverUUID,
-		Status:     domain.IncomingStatusPending,
-		Remark:     req.Remark,
-		CreatedAt:  time.Now(),
+		IncomingNo:   util.GenerateIncomingNumber(),
+		DocDetailsID: doc.ID,
+		CreatedBy:    &senderUUID,
+		Status:       domain.IncomingStatusPending,
+		Remark:       req.Remark,
 	}
+	// TODO: map receiver properly in new ERD (it doesn't have receiver_id). Probably we set it to something else or updated_by.
+	// For now just pass it through creation.
 	if err := s.incomingRepo.Create(ctx, incoming); err != nil {
 		return util.NewDatabaseError("create incoming document", err)
 	}
 
-	// Update Document Status
 	doc.Status = domain.StatusPending
 	if err := s.repo.Update(ctx, id, doc); err != nil {
 		return util.NewDatabaseError("update document status", err)

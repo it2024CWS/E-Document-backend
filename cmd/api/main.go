@@ -115,8 +115,8 @@ func main() {
 
 	// Rate limiting middleware
 	e.Use(customMiddleware.RateLimitMiddleware(customMiddleware.RateLimitConfig{
-		RequestsPerSecond: 20,
-		BurstSize:         50,
+		RequestsPerSecond: 1000,
+		BurstSize:         3000,
 	}))
 
 	// Connect to PostgreSQL
@@ -181,7 +181,7 @@ func main() {
 
 	// Initialize outgoingdoc module
 	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
-	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocRepo)
+	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo)
 	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
 
 	// Initialize document module

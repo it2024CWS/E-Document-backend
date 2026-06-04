@@ -14,6 +14,7 @@ type Folder struct {
 	UserID         uuid.UUID  `json:"user_id" db:"user_id"`
 	ParentFolderID *uuid.UUID `json:"parent_folder_id" db:"parent_folder_id"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	DeletedAt      *time.Time `json:"deleted_at" db:"deleted_at"`
 }
 
 // CreateFolderRequest represents the request body for creating a folder

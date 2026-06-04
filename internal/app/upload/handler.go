@@ -283,7 +283,7 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 	log.Info().
 		Str("upload_id", upload.ID).
 		Str("document_id", result.Document.ID.String()).
-		Str("attachment_id", result.Attachment.ID.String()).
+		Str("version_id", result.Version.ID.String()).
 		Int("folders_created", len(result.Folders)).
 		Msg("Upload processed successfully")
 }
@@ -457,42 +457,42 @@ func (h *Handler) GetUploadInfo(c echo.Context) error {
 
 // DownloadFile godoc
 // @Summary		Download a file
-// @Description	Downloads a file by attachment ID with original filename
+// @Description	Downloads a file by version ID
 // @Tags		Upload
 // @Produce		application/octet-stream
 // @Security	BearerAuth
-// @Param		id	path		string	true	"Attachment ID"
+// @Param		id	path		string	true	"Version ID"
 // @Success		200	{file}		binary
 // @Failure		400	{object}	util.Response
 // @Failure		404	{object}	util.Response
 // @Failure		500	{object}	util.Response
 // @Router		/v1/upload/download/{id} [get]
 func (h *Handler) DownloadFile(c echo.Context) error {
-	// Get attachment ID from URL parameter
-	attachmentIDStr := c.Param("id")
-	attachmentID, err := uuid.Parse(attachmentIDStr)
+	// Get version ID from URL parameter
+	versionIDStr := c.Param("id")
+	versionID, err := uuid.Parse(versionIDStr)
 	if err != nil {
-		return util.HandleError(c, util.ErrorResponse("Invalid attachment ID", util.INVALID_INPUT, 400, "The provided attachment ID is not a valid UUID"))
+		return util.HandleError(c, util.ErrorResponse("Invalid version ID", util.INVALID_INPUT, 400, "The provided version ID is not a valid UUID"))
 	}
 
-	// Get attachment details from database
-	attachment, err := h.service.GetAttachment(c.Request().Context(), attachmentID)
+	// Get version details from database
+	version, doc, err := h.service.GetVersionWithDoc(c.Request().Context(), versionID)
 	if err != nil {
-		log.Error().Err(err).Str("attachment_id", attachmentIDStr).Msg("Failed to get attachment")
-		return util.HandleError(c, util.ErrorResponse("Attachment not found", util.VALIDATION_ERROR, 404, fmt.Sprintf("No attachment found with ID: %s", attachmentIDStr)))
+		log.Error().Err(err).Str("version_id", versionIDStr).Msg("Failed to get version")
+		return util.HandleError(c, util.ErrorResponse("Version not found", util.VALIDATION_ERROR, 404, fmt.Sprintf("No version found with ID: %s", versionIDStr)))
 	}
 
-	// Download file from MinIO using file_path (upload ID)
+	// Download file from MinIO using doc_path
 	object, err := h.minioClient.GetObject(
 		c.Request().Context(),
 		h.bucket,
-		attachment.FilePath, // This is the upload ID
+		version.DocPath,
 		minio.GetObjectOptions{},
 	)
 	if err != nil {
 		log.Error().Err(err).
-			Str("attachment_id", attachmentIDStr).
-			Str("file_path", attachment.FilePath).
+			Str("version_id", versionIDStr).
+			Str("file_path", version.DocPath).
 			Msg("Failed to get object from MinIO")
 		return util.HandleError(c, util.ErrorResponse("Failed to download file", util.INTERNAL_SERVER_ERROR, 500, "Could not retrieve file from storage"))
 	}
@@ -502,19 +502,22 @@ func (h *Handler) DownloadFile(c echo.Context) error {
 	stat, err := object.Stat()
 	if err != nil {
 		log.Error().Err(err).
-			Str("attachment_id", attachmentIDStr).
-			Str("file_path", attachment.FilePath).
+			Str("version_id", versionIDStr).
+			Str("file_path", version.DocPath).
 			Msg("Failed to get object stat from MinIO")
 		return util.HandleError(c, util.ErrorResponse("File not found in storage", util.VALIDATION_ERROR, 404, "The file exists in database but not found in storage"))
 	}
 
+	fileType := GetFileTypeFromPath(doc.DocName)
+	fileName := doc.DocName
+	
 	// Set response headers with original filename
-	c.Response().Header().Set("Content-Type", attachment.FileType)
-	c.Response().Header().Set("Content-Disposition", encodeFilename(attachment.FileName))
+	c.Response().Header().Set("Content-Type", fileType)
+	c.Response().Header().Set("Content-Disposition", encodeFilename(fileName))
 	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size))
 
 	// Stream the file to client
-	return c.Stream(200, attachment.FileType, object)
+	return c.Stream(200, fileType, object)
 }
 
 // DownloadFolder godoc
@@ -544,14 +547,14 @@ func (h *Handler) DownloadFolder(c echo.Context) error {
 		return util.HandleError(c, util.ErrorResponse("Folder not found", util.VALIDATION_ERROR, 404, fmt.Sprintf("No folder found with ID: %s", folderIDStr)))
 	}
 
-	// Get all attachments in the folder (recursively)
-	attachments, err := h.service.GetFolderAttachments(c.Request().Context(), folderID)
+	// Get all versions in the folder (recursively)
+	versions, err := h.service.GetFolderVersions(c.Request().Context(), folderID)
 	if err != nil {
-		log.Error().Err(err).Str("folder_id", folderIDStr).Msg("Failed to get folder attachments")
+		log.Error().Err(err).Str("folder_id", folderIDStr).Msg("Failed to get folder versions")
 		return util.HandleError(c, util.ErrorResponse("Failed to get folder contents", util.INTERNAL_SERVER_ERROR, 500, "Could not retrieve folder contents"))
 	}
 
-	if len(attachments) == 0 {
+	if len(versions) == 0 {
 		return util.HandleError(c, util.ErrorResponse("Empty folder", util.VALIDATION_ERROR, 404, "No files found in this folder"))
 	}
 
@@ -568,10 +571,19 @@ func (h *Handler) DownloadFolder(c echo.Context) error {
 	addedFiles := make(map[string]bool)
 
 	// Add each file to the ZIP
-	for _, attachment := range attachments {
-		// Skip if already added (shouldn't happen, but just in case)
-		if addedFiles[attachment.FileName] {
-			log.Warn().Str("filename", attachment.FileName).Msg("Duplicate filename detected, skipping")
+	for _, version := range versions {
+		// fetch doc details to get the name
+		_, doc, err := h.service.GetVersionWithDoc(c.Request().Context(), version.ID)
+		if err != nil {
+			log.Warn().Err(err).Str("version_id", version.ID.String()).Msg("Failed to get doc details, skipping")
+			continue
+		}
+		
+		fileName := doc.DocName
+		
+		// Skip if already added
+		if addedFiles[fileName] {
+			log.Warn().Str("filename", fileName).Msg("Duplicate filename detected, skipping")
 			continue
 		}
 
@@ -579,21 +591,21 @@ func (h *Handler) DownloadFolder(c echo.Context) error {
 		object, err := h.minioClient.GetObject(
 			c.Request().Context(),
 			h.bucket,
-			attachment.FilePath,
+			version.DocPath,
 			minio.GetObjectOptions{},
 		)
 		if err != nil {
 			log.Error().Err(err).
-				Str("file_path", attachment.FilePath).
-				Str("filename", attachment.FileName).
+				Str("file_path", version.DocPath).
+				Str("filename", fileName).
 				Msg("Failed to get object from MinIO, skipping file")
 			continue // Skip this file and continue with others
 		}
 
 		// Create file in ZIP
-		writer, err := zipWriter.Create(attachment.FileName)
+		writer, err := zipWriter.Create(fileName)
 		if err != nil {
-			log.Error().Err(err).Str("filename", attachment.FileName).Msg("Failed to create file in ZIP")
+			log.Error().Err(err).Str("filename", fileName).Msg("Failed to create file in ZIP")
 			object.Close()
 			continue
 		}
@@ -603,12 +615,12 @@ func (h *Handler) DownloadFolder(c echo.Context) error {
 		object.Close()
 
 		if err != nil {
-			log.Error().Err(err).Str("filename", attachment.FileName).Msg("Failed to copy file to ZIP")
+			log.Error().Err(err).Str("filename", fileName).Msg("Failed to copy file to ZIP")
 			continue
 		}
 
-		addedFiles[attachment.FileName] = true
-		log.Debug().Str("filename", attachment.FileName).Msg("Added file to ZIP")
+		addedFiles[fileName] = true
+		log.Debug().Str("filename", fileName).Msg("Added file to ZIP")
 	}
 
 	log.Info().

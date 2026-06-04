@@ -28,6 +28,7 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/folder/:folderId", h.GetDocumentsByFolder)
 	docs.POST("", h.CreateDocument)
 	docs.PUT("/:id", h.UpdateDocument)
+	docs.DELETE("/:id", h.DeleteDocument)
 	docs.POST("/:id/send", h.SendDocument)
 }
 
@@ -142,7 +143,14 @@ func (h *Handler) GetDocumentsByFolder(c echo.Context) error {
 		return util.HandleError(c, err)
 	}
 
-	return util.OKResponse(c, "Documents in folder retrieved successfully", docs)
+	pagination := util.PaginationInfo{
+		CurrentPage:  1,
+		TotalPages:   1, // Dummy
+		TotalItems:   len(docs),
+		ItemsPerPage: 10,
+	}
+
+	return util.OKResponseWithPagination(c, "Documents in folder retrieved successfully", docs, pagination)
 }
 
 // CreateDocument godoc
@@ -167,15 +175,7 @@ func (h *Handler) CreateDocument(c echo.Context) error {
 		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid request format"))
 	}
 
-	// Handle file upload
-	file, err := c.FormFile("file")
-	if err == nil {
-		path, err := util.SaveFile(file, "documents")
-		if err != nil {
-			return util.HandleError(c, err)
-		}
-		req.DocPath = path
-	}
+
 
 	doc, err := h.service.CreateDocument(ctx, userID, req)
 	if err != nil {
@@ -213,15 +213,7 @@ func (h *Handler) UpdateDocument(c echo.Context) error {
 		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid request format"))
 	}
 
-	// Handle file upload (optional for update)
-	file, err := c.FormFile("file")
-	if err == nil {
-		path, err := util.SaveFile(file, "documents")
-		if err != nil {
-			return util.HandleError(c, err)
-		}
-		req.DocPath = path
-	}
+
 
 	doc, err := h.service.UpdateDocument(ctx, id, req)
 	if err != nil {

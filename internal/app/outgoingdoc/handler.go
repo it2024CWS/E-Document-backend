@@ -25,7 +25,6 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs := e.Group("/v1/outgoing-docs", middleware...)
 	docs.GET("", h.GetAllOutgoingDocs)
 	docs.GET("/:id", h.GetOutgoingDocByID)
-	docs.GET("/user/:userId", h.GetOutgoingDocsByUser)
 	docs.GET("/department/:deptId", h.GetOutgoingDocsByDepartment)
 	docs.POST("", h.CreateOutgoingDoc)
 }
@@ -115,34 +114,6 @@ func (h *Handler) GetOutgoingDocByID(c echo.Context) error {
 	return util.OKResponse(c, "Outgoing document retrieved successfully", doc)
 }
 
-// GetOutgoingDocsByUser godoc
-//
-//	@Summary		Get outgoing documents by user
-//	@Description	Get outgoing documents for a specific user
-//	@Tags			outgoing-docs
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			userId	path		string	true	"User UUID"
-//	@Success		200		{object}	util.Response{data=[]domain.OutgoingDocResponse}
-//	@Failure		401		{object}	util.Response
-//	@Failure		500		{object}	util.Response
-//	@Router			/v1/outgoing-docs/user/{userId} [get]
-func (h *Handler) GetOutgoingDocsByUser(c echo.Context) error {
-	ctx := c.Request().Context()
-	userID, err := uuid.Parse(c.Param("userId"))
-	if err != nil {
-		return util.HandleError(c, util.NewInvalidInputError("userId", "must be a valid UUID"))
-	}
-
-	docs, err := h.service.GetOutgoingDocsByUser(ctx, userID)
-	if err != nil {
-		return util.HandleError(c, err)
-	}
-
-	return util.OKResponse(c, "Outgoing documents for user retrieved successfully", docs)
-}
-
 // GetOutgoingDocsByDepartment godoc
 //
 //	@Summary		Get outgoing documents by department
@@ -163,7 +134,6 @@ func (h *Handler) GetOutgoingDocsByDepartment(c echo.Context) error {
 		return util.HandleError(c, util.NewInvalidInputError("deptId", "must be a valid UUID"))
 	}
 
-	// Get pagination params from query
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	if page <= 0 {
 		page = 1
@@ -203,7 +173,6 @@ func (h *Handler) GetOutgoingDocsByDepartment(c echo.Context) error {
 func (h *Handler) CreateOutgoingDoc(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	// Get current user ID
 	userIDStr := util.GetUserIDFromContext(c)
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -215,15 +184,15 @@ func (h *Handler) CreateOutgoingDoc(c echo.Context) error {
 		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid JSON format"))
 	}
 
-	// Ensure user ID is set to current user if not provided (though in this case we might force it)
-	if req.UserID == nil {
-		req.UserID = &userID
+	if req.CreatedBy == nil {
+		req.CreatedBy = &userID
 	}
 
-	doc, err := h.service.CreateOutgoingDoc(ctx, req)
+	// Just ignoring department routing for now as the ERD has no dept_id
+	err = h.service.CreateOutgoingDocWithParams(ctx, req.DocDetailsID, req.CreatedBy, nil)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
 
-	return util.OKResponse(c, "Outgoing document created successfully", doc, 201)
+	return util.OKResponse(c, "Outgoing document created successfully", nil, 201)
 }

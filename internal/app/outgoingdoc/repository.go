@@ -10,7 +10,6 @@ import (
 type Repository interface {
 	FindAll(ctx context.Context, limit, offset int) ([]domain.OutgoingDoc, int, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.OutgoingDoc, error)
-	FindByUserID(ctx context.Context, userID uuid.UUID) ([]domain.OutgoingDoc, error)
 	FindByDepartmentID(ctx context.Context, deptID uuid.UUID, limit, offset int) ([]domain.OutgoingDoc, int, error)
 	Create(ctx context.Context, doc *domain.OutgoingDoc) error
 }
