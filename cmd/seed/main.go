@@ -24,7 +24,7 @@ func main() {
 	logger.Info("Starting database seeding...")
 
 	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Connect to PostgreSQL
@@ -37,10 +37,22 @@ func main() {
 	// Initialize repositories
 	userRepo := user.NewPostgresRepository(pgClient.Pool)
 
-	// Seed admin user using shared seeder
-	if err := seed.SeedAdmin(ctx, userRepo, pgClient.Pool, cfg); err != nil {
-		logger.FatalWithErr("Failed to seed admin user", err)
+	// Step 1: Seed master / reference data
+	// (roles → departments → sectors → doc_types)
+	logger.Info("Seeding master data...")
+	if err := seed.SeedMasterData(ctx, pgClient.Pool); err != nil {
+		logger.FatalWithErr("Failed to seed master data", err)
 	}
+	logger.Info("✓ Master data seeded successfully!")
 
-	logger.Info("✓ Admin user seeded successfully!")
+	// Step 2: Seed system users
+	// (depends on roles being present)
+	logger.Info("Seeding system users...")
+	if err := seed.SeedUsers(ctx, userRepo, pgClient.Pool); err != nil {
+		logger.FatalWithErr("Failed to seed users", err)
+	}
+	logger.Info("✓ Users seeded successfully!")
+
+	logger.Info("🎉 Database seeding complete!")
 }
+
