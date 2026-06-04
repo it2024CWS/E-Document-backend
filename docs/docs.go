@@ -4346,6 +4346,9 @@ const docTemplate = `{
                 "doc_no": {
                     "type": "string"
                 },
+                "doc_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4372,6 +4375,9 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/e-document-backend_internal_domain.IncomingDocStatus"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -4423,6 +4429,9 @@ const docTemplate = `{
                 "doc_no": {
                     "type": "string"
                 },
+                "doc_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4433,6 +4442,9 @@ const docTemplate = `{
                     }
                 },
                 "outgoing_no": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "user_id": {

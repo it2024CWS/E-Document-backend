@@ -36,7 +36,7 @@ func NewHandler(service Service, storageClient interface {
 
 // RegisterRoutes registers user routes
 func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFunc) {
-	users := e.Group("/v1/users", authMiddleware)
+	users := e.Group("/v1/users")
 	users.POST("", h.CreateUser)
 	users.GET("", h.GetAllUsers)
 	users.GET("/:id", h.GetUserByID)

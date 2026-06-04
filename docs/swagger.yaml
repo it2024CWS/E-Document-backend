@@ -234,6 +234,8 @@ definitions:
         type: string
       doc_no:
         type: string
+      doc_path:
+        type: string
       id:
         type: string
       incoming_no:
@@ -252,6 +254,8 @@ definitions:
         type: string
       status:
         $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocStatus'
+      type:
+        type: string
     type: object
   e-document-backend_internal_domain.IncomingDocStatus:
     enum:
@@ -287,6 +291,8 @@ definitions:
         type: string
       doc_no:
         type: string
+      doc_path:
+        type: string
       id:
         type: string
       incoming_docs:
@@ -294,6 +300,8 @@ definitions:
           $ref: '#/definitions/e-document-backend_internal_domain.IncomingDocResponse'
         type: array
       outgoing_no:
+        type: string
+      type:
         type: string
       user_id:
         type: string

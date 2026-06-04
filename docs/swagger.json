@@ -4339,6 +4339,9 @@
                 "doc_no": {
                     "type": "string"
                 },
+                "doc_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4365,6 +4368,9 @@
                 },
                 "status": {
                     "$ref": "#/definitions/e-document-backend_internal_domain.IncomingDocStatus"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -4416,6 +4422,9 @@
                 "doc_no": {
                     "type": "string"
                 },
+                "doc_path": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -4426,6 +4435,9 @@
                     }
                 },
                 "outgoing_no": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 },
                 "user_id": {
