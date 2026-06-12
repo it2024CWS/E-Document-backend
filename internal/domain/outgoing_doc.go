@@ -32,24 +32,44 @@ type CreateOutgoingDocRequest struct {
 	UpdatedBy    *uuid.UUID `json:"updated_by"`
 }
 
-// OutgoingDocResponse represents the outgoing document response
-type OutgoingDocResponse struct {
-	ID           uuid.UUID             `json:"id"`
-	OutgoingNo   string                `json:"outgoing_no"`
-	DocDetailsID uuid.UUID             `json:"doc_details_id"`
-	DocNo        string                `json:"doc_no,omitempty"`
-	DocName      string                `json:"doc_name,omitempty"`
-	DocPath      string                `json:"doc_path,omitempty"`
-	FolderID     *uuid.UUID            `json:"folder_id"`
-	CreatedBy    *uuid.UUID            `json:"created_by"`
-	CreatorName  string                `json:"creator_name,omitempty"`
-	UpdatedBy    *uuid.UUID            `json:"updated_by"`
-	UpdaterName  string                `json:"updater_name,omitempty"`
-	CreatedAt    time.Time             `json:"created_at"`
-	IncomingDocs []IncomingDocResponse `json:"incoming_docs,omitempty"`
+// RecipientInfo holds per-department tracking for an outgoing document
+type RecipientInfo struct {
+	DepartmentID   uuid.UUID         `json:"department_id"`
+	DepartmentName string            `json:"department_name"`
+	IncomingNo     string            `json:"incoming_no"`
+	Status         IncomingDocStatus `json:"status"`
+	ReceivedDate   *time.Time        `json:"received_date"`
+	ApproverDate   *time.Time        `json:"approver_date"`
 }
 
-// ToResponse converts OutgoingDoc to OutgoingDocResponse
+// StatusCounts holds the count of incoming docs grouped by status
+type StatusCounts struct {
+	Total    int `json:"total"`
+	Pending  int `json:"pending"`
+	Received int `json:"received"`
+	Approved int `json:"approved"`
+	Rejected int `json:"rejected"`
+}
+
+// OutgoingDocResponse represents the outgoing document response
+type OutgoingDocResponse struct {
+	ID           uuid.UUID      `json:"id"`
+	OutgoingNo   string         `json:"outgoing_no"`
+	DocDetailsID uuid.UUID      `json:"doc_details_id"`
+	DocNo        string         `json:"doc_no,omitempty"`
+	DocName      string         `json:"doc_name,omitempty"`
+	DocPath      string         `json:"doc_path,omitempty"`
+	FolderID     *uuid.UUID     `json:"folder_id"`
+	CreatedBy    *uuid.UUID     `json:"created_by"`
+	CreatorName  string         `json:"creator_name,omitempty"`
+	UpdatedBy    *uuid.UUID     `json:"updated_by"`
+	UpdaterName  string         `json:"updater_name,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
+	Recipients   []RecipientInfo `json:"recipients"`
+	StatusCounts StatusCounts   `json:"status_counts"`
+}
+
+// ToResponse converts OutgoingDoc to OutgoingDocResponse (without recipients; service fills them in)
 func (o *OutgoingDoc) ToResponse() OutgoingDocResponse {
 	return OutgoingDocResponse{
 		ID:           o.ID,
@@ -64,5 +84,6 @@ func (o *OutgoingDoc) ToResponse() OutgoingDocResponse {
 		DocPath:      o.DocPath,
 		CreatorName:  o.CreatorName,
 		UpdaterName:  o.UpdaterName,
+		Recipients:   []RecipientInfo{},
 	}
 }

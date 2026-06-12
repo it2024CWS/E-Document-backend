@@ -19,7 +19,7 @@ type Service interface {
 	GetIncomingDocsByStatus(ctx context.Context, status string) ([]domain.IncomingDocResponse, error)
 	ReceiveDocument(ctx context.Context, req domain.ReceiveDocumentRequest) (*domain.IncomingDocResponse, error)
 	ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error)
-	CreateIncomingDocs(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, deptIDs []uuid.UUID, remark string) error
+	CreateIncomingDocs(ctx context.Context, docDetailsID uuid.UUID, outgoingDocID uuid.UUID, creatorID *uuid.UUID, deptIDs []uuid.UUID, remark string) error
 }
 
 type service struct {
@@ -102,28 +102,68 @@ func (s *service) GetIncomingDocsByStatus(ctx context.Context, status string) ([
 }
 
 func (s *service) ReceiveDocument(ctx context.Context, req domain.ReceiveDocumentRequest) (*domain.IncomingDocResponse, error) {
-	// Not implemented with full ReceiverID logic yet since ReceiverID was changed to UpdatedBy
-	return nil, fmt.Errorf("not implemented")
+	doc, err := s.repo.FindByID(ctx, req.IncomingDocID)
+	if err != nil {
+		return nil, util.NewNotFoundError("IncomingDoc", req.IncomingDocID.String())
+	}
+
+	if doc.Status != domain.IncomingStatusPending {
+		return nil, util.NewValidationError(fmt.Sprintf("cannot receive a document with status '%s'", doc.Status))
+	}
+
+	now := time.Now()
+	receiverID, err := uuid.Parse(req.ReceiverID)
+	if err != nil {
+		return nil, util.NewInvalidInputError("receiver_id", "must be a valid UUID")
+	}
+
+	// Generate incoming_no only at the moment of physical reception
+	doc.IncomingNo = util.GenerateIncomingNumber()
+	doc.Status = domain.IncomingStatusReceived
+	doc.ReceivedDate = &now
+	doc.UpdatedBy = &receiverID
+	if req.Remark != "" {
+		doc.Remark = req.Remark
+	}
+
+	if err := s.repo.Update(ctx, doc.ID, doc); err != nil {
+		return nil, util.NewDatabaseError("receive document", err)
+	}
+
+	updated, err := s.repo.FindByID(ctx, doc.ID)
+	if err != nil {
+		return nil, util.NewDatabaseError("fetch updated document", err)
+	}
+
+	resp := updated.ToResponse()
+	return &resp, nil
 }
 
 func (s *service) ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (s *service) CreateIncomingDocs(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, deptIDs []uuid.UUID, remark string) error {
+func (s *service) CreateIncomingDocs(ctx context.Context, docDetailsID uuid.UUID, outgoingDocID uuid.UUID, creatorID *uuid.UUID, deptIDs []uuid.UUID, remark string) error {
 	now := time.Now()
-	// Create one per department for now, though dept_id is removed from table we might need to route differently
-	// Just create one default for now to satisfy upload logic.
-	doc := &domain.IncomingDoc{
-		IncomingNo:   util.GenerateIncomingNumber(),
-		DocDetailsID: docDetailsID,
-		CreatedBy:    creatorID,
-		Status:       domain.IncomingStatusPending,
-		Remark:       remark,
-		IncomingDate: &now,
+	var outgoingDocIDPtr *uuid.UUID
+	if outgoingDocID != uuid.Nil {
+		outgoingDocIDPtr = &outgoingDocID
 	}
-	if err := s.repo.Create(ctx, doc); err != nil {
-		return err
+	for _, deptID := range deptIDs {
+		deptIDCopy := deptID
+		doc := &domain.IncomingDoc{
+			// incoming_no is intentionally left empty — assigned by Secretary on receive.
+			DocDetailsID:  docDetailsID,
+			OutgoingDocID: outgoingDocIDPtr,
+			CreatedBy:     creatorID,
+			Status:        domain.IncomingStatusPending,
+			Remark:        remark,
+			IncomingDate:  &now,
+			DeptID:        &deptIDCopy,
+		}
+		if err := s.repo.Create(ctx, doc); err != nil {
+			return fmt.Errorf("failed to create incoming doc for dept %s: %w", deptID, err)
+		}
 	}
 	return nil
 }

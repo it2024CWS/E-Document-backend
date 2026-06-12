@@ -119,10 +119,14 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 	titleWithoutExt := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
-	existingDoc, findErr := s.repo.FindDocumentByNameAndFolder(ctx, tx, titleWithoutExt, currentParentID)
-	if findErr != nil {
-		err = findErr
-		return nil, err
+	var existingDoc *domain.DocDetails
+	// Outgoing and incoming docs always get a fresh doc_no —
+	// each send/receive is an independent document, not a new version of a previous one.
+	if params.TargetModule != "outgoing" && params.TargetModule != "incoming" {
+		existingDoc, err = s.repo.FindDocumentByNameAndFolder(ctx, tx, titleWithoutExt, currentParentID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var doc *domain.DocDetails
@@ -190,13 +194,13 @@ func (s *service) postProcessModule(ctx context.Context, params ProcessUploadPar
 	bgCtx := context.Background()
 	switch params.TargetModule {
 	case "incoming":
-		s.handleIncomingModule(bgCtx, params, docID)
+		s.handleIncomingModule(bgCtx, params, docID, uuid.Nil)
 	case "outgoing":
 		s.handleOutgoingModule(bgCtx, params, docID)
 	}
 }
 
-func (s *service) handleIncomingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID) {
+func (s *service) handleIncomingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID, outgoingDocID uuid.UUID) {
 	receiverIDsStr := params.ExtraMetadata["receiver_ids"]
 	if receiverIDsStr == "" {
 		log.Warn().Str("upload_id", params.UploadID).Msg("Incoming module requested but no receiver_ids provided")
@@ -218,7 +222,7 @@ func (s *service) handleIncomingModule(ctx context.Context, params ProcessUpload
 	}
 
 	remark := params.ExtraMetadata["description"]
-	if err := s.incomingService.CreateIncomingDocs(ctx, docID, &params.OwnerID, deptUUIDs, remark); err != nil {
+	if err := s.incomingService.CreateIncomingDocs(ctx, docID, outgoingDocID, &params.OwnerID, deptUUIDs, remark); err != nil {
 		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create incoming docs")
 	}
 }
@@ -230,12 +234,14 @@ func (s *service) handleOutgoingModule(ctx context.Context, params ProcessUpload
 		deptID = userRes.DepartmentID
 	}
 
-	if err := s.outgoingService.CreateOutgoingDocWithParams(ctx, docID, &params.OwnerID, deptID); err != nil {
+	outgoingDocID, err := s.outgoingService.CreateOutgoingDocWithParams(ctx, docID, &params.OwnerID, deptID)
+	if err != nil {
 		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create outgoing doc")
+		return
 	}
 
 	if receiverIDsStr := params.ExtraMetadata["receiver_ids"]; receiverIDsStr != "" {
-		s.handleIncomingModule(ctx, params, docID)
+		s.handleIncomingModule(ctx, params, docID, outgoingDocID)
 	}
 }
 

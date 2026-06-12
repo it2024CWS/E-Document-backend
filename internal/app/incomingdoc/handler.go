@@ -2,6 +2,7 @@ package incomingdoc
 
 import (
 	"e-document-backend/internal/domain"
+	mw "e-document-backend/internal/middleware"
 	"e-document-backend/internal/util"
 
 	"strconv"
@@ -28,7 +29,7 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/receiver/:receiverId", h.GetIncomingDocsByReceiver)
 	docs.GET("/department/:deptId", h.GetIncomingDocsByDepartment)
 	docs.GET("/status/:status", h.GetIncomingDocsByStatus)
-	docs.POST("/:id/receive", h.ReceiveDocument)
+	docs.POST("/:id/receive", h.ReceiveDocument, mw.RequireRole("Secretary"))
 	docs.POST("/:id/approve", h.ApproveDocument)
 }
 

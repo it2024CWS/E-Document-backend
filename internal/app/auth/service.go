@@ -188,10 +188,10 @@ func (s *service) GetProfile(ctx context.Context, userID string) (*domain.UserRe
 func (s *service) buildUserClaims(user *domain.User, tokenType string, expiry int64) jwt.MapClaims {
 	// Convert role_id to int for JWT (could be null)
 	var roleID interface{}
-	var roleName string
 	if user.RoleID != nil {
 		roleID = *user.RoleID
 	}
+	roleName := user.RoleName
 
 	return jwt.MapClaims{
 		"user_id":       user.ID.String(),

@@ -32,6 +32,9 @@ type IncomingDoc struct {
 	Remark       string            `json:"remark" db:"remark"`
 	UpdatedAt    time.Time         `json:"updated_at" db:"updated_at"`
 
+	DeptID        *uuid.UUID `json:"dept_id,omitempty" db:"dept_id"`
+	OutgoingDocID *uuid.UUID `json:"outgoing_doc_id,omitempty" db:"outgoing_doc_id"`
+
 	// Joined fields
 	DocNo        string `json:"doc_no,omitempty" db:"doc_no"`
 	DocName      string `json:"doc_name,omitempty" db:"doc_name"`
@@ -39,6 +42,7 @@ type IncomingDoc struct {
 	CreatorName  string `json:"creator_name,omitempty" db:"creator_name"`
 	UpdaterName  string `json:"updater_name,omitempty" db:"updater_name"`
 	ApproverName string `json:"approver_name,omitempty" db:"approver_name"`
+	DeptName     string `json:"dept_name,omitempty" db:"dept_name"`
 }
 
 // CreateIncomingDocRequest represents the request body for creating an incoming document
@@ -81,6 +85,8 @@ type IncomingDocResponse struct {
 	ApproverDate *time.Time        `json:"approver_date"`
 	Remark       string            `json:"remark"`
 	UpdatedAt    time.Time         `json:"updated_at"`
+	DeptID       *uuid.UUID        `json:"dept_id,omitempty"`
+	DeptName     string            `json:"dept_name,omitempty"`
 }
 
 // ToResponse converts IncomingDoc to IncomingDocResponse
@@ -105,5 +111,7 @@ func (i *IncomingDoc) ToResponse() IncomingDocResponse {
 		CreatorName:  i.CreatorName,
 		UpdaterName:  i.UpdaterName,
 		ApproverName: i.ApproverName,
+		DeptID:       i.DeptID,
+		DeptName:     i.DeptName,
 	}
 }

@@ -188,8 +188,7 @@ func (h *Handler) CreateOutgoingDoc(c echo.Context) error {
 		req.CreatedBy = &userID
 	}
 
-	// Just ignoring department routing for now as the ERD has no dept_id
-	err = h.service.CreateOutgoingDocWithParams(ctx, req.DocDetailsID, req.CreatedBy, nil)
+	_, err = h.service.CreateOutgoingDocWithParams(ctx, req.DocDetailsID, req.CreatedBy, nil)
 	if err != nil {
 		return util.HandleError(c, err)
 	}

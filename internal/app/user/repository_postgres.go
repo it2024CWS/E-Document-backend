@@ -122,11 +122,13 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 // FindByUsername retrieves a user by username
 func (r *postgresRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	query := `
-		SELECT 
+		SELECT
 			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
 			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
-			u.created_at, u.updated_at
+			u.created_at, u.updated_at,
+			COALESCE(ur.role_name, '') as role_name
 		FROM users u
+		LEFT JOIN user_roles ur ON u.role_id = ur.id
 		WHERE u.username = $1
 	`
 
@@ -147,6 +149,7 @@ func (r *postgresRepository) FindByUsername(ctx context.Context, username string
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.RoleName,
 	)
 
 	if err != nil {
@@ -162,11 +165,13 @@ func (r *postgresRepository) FindByUsername(ctx context.Context, username string
 // FindByEmail retrieves a user by email
 func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT 
+		SELECT
 			u.id, u.username, u.email, u.phone, u.firstname, u.lastname, u.nickname,
 			u.password, u.role_id, u.department_id, u.sector_id, u.is_active, u.profile_picture,
-			u.created_at, u.updated_at
+			u.created_at, u.updated_at,
+			COALESCE(ur.role_name, '') as role_name
 		FROM users u
+		LEFT JOIN user_roles ur ON u.role_id = ur.id
 		WHERE u.email = $1
 	`
 
@@ -187,6 +192,7 @@ func (r *postgresRepository) FindByEmail(ctx context.Context, email string) (*do
 		&user.ProfilePicture,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.RoleName,
 	)
 
 	if err != nil {

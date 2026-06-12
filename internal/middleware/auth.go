@@ -54,12 +54,34 @@ func AuthMiddleware(authService auth.Service) echo.MiddlewareFunc {
 			c.Set("user_id", claims.UserID)
 			c.Set("username", claims.Username)
 			c.Set("email", claims.Email)
+			c.Set("role_name", claims.RoleName)
 			if claims.DepartmentID != nil {
 				c.Set("dept_id", claims.DepartmentID.String())
 			}
 			c.Set("token", token)
 
 			return next(c)
+		}
+	}
+}
+
+// RequireRole returns a middleware that allows access only if the caller's role_name
+// matches one of the provided allowed roles (case-insensitive).
+func RequireRole(allowedRoles ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			roleName, _ := c.Get("role_name").(string)
+			for _, allowed := range allowedRoles {
+				if strings.EqualFold(roleName, allowed) {
+					return next(c)
+				}
+			}
+			return util.HandleError(c, util.ErrorResponse(
+				"Forbidden",
+				util.FORBIDDEN,
+				403,
+				"You do not have permission to perform this action",
+			))
 		}
 	}
 }
