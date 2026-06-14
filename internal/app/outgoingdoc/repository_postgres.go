@@ -27,14 +27,14 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 	}
 
 	query := `
-		SELECT 
+		SELECT
 			o.id, o.outgoing_no, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at,
-			d.doc_no, d.doc_name, v.doc_path,
+			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
 			u2.firstname || ' ' || u2.lastname as updater_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
-		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id = v.folder_id
+		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		ORDER BY o.created_at DESC
@@ -50,10 +50,10 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 	var documents []domain.OutgoingDoc
 	for rows.Next() {
 		var doc domain.OutgoingDoc
-		var docNo, docName, docPath, creatorName, updaterName *string
+		var docNo, docName, docPath, fileType, creatorName, updaterName *string
 		if err := rows.Scan(
 			&doc.ID, &doc.OutgoingNo, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt,
-			&docNo, &docName, &docPath, &creatorName, &updaterName,
+			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan outgoing document: %w", err)
 		}
@@ -61,6 +61,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 		if docNo != nil { doc.DocNo = *docNo }
 		if docName != nil { doc.DocName = *docName }
 		if docPath != nil { doc.DocPath = *docPath }
+		if fileType != nil { doc.FileType = *fileType }
 		if creatorName != nil { doc.CreatorName = *creatorName }
 		if updaterName != nil { doc.UpdaterName = *updaterName }
 
@@ -72,24 +73,24 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 
 func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.OutgoingDoc, error) {
 	query := `
-		SELECT 
+		SELECT
 			o.id, o.outgoing_no, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at,
-			d.doc_no, d.doc_name, v.doc_path,
+			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
 			u2.firstname || ' ' || u2.lastname as updater_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
-		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id = v.folder_id
+		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		WHERE o.id = $1
 	`
 
 	var doc domain.OutgoingDoc
-	var docNo, docName, docPath, creatorName, updaterName *string
+	var docNo, docName, docPath, fileType, creatorName, updaterName *string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&doc.ID, &doc.OutgoingNo, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt,
-		&docNo, &docName, &docPath, &creatorName, &updaterName,
+		&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("outgoing document not found")
@@ -101,6 +102,7 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domai
 	if docNo != nil { doc.DocNo = *docNo }
 	if docName != nil { doc.DocName = *docName }
 	if docPath != nil { doc.DocPath = *docPath }
+	if fileType != nil { doc.FileType = *fileType }
 	if creatorName != nil { doc.CreatorName = *creatorName }
 	if updaterName != nil { doc.UpdaterName = *updaterName }
 
@@ -122,12 +124,12 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 	query := `
 		SELECT
 			o.id, o.outgoing_no, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at,
-			d.doc_no, d.doc_name, v.doc_path,
+			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
 			u2.firstname || ' ' || u2.lastname as updater_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
-		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id = v.folder_id
+		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		WHERE u.department_id = $1
@@ -144,16 +146,17 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 	var documents []domain.OutgoingDoc
 	for rows.Next() {
 		var doc domain.OutgoingDoc
-		var docNo, docName, docPath, creatorName, updaterName *string
+		var docNo, docName, docPath, fileType, creatorName, updaterName *string
 		if err := rows.Scan(
 			&doc.ID, &doc.OutgoingNo, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt,
-			&docNo, &docName, &docPath, &creatorName, &updaterName,
+			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan outgoing document: %w", err)
 		}
 		if docNo != nil      { doc.DocNo = *docNo }
 		if docName != nil    { doc.DocName = *docName }
 		if docPath != nil    { doc.DocPath = *docPath }
+		if fileType != nil   { doc.FileType = *fileType }
 		if creatorName != nil { doc.CreatorName = *creatorName }
 		if updaterName != nil { doc.UpdaterName = *updaterName }
 		documents = append(documents, doc)

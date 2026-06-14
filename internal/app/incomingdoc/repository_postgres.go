@@ -24,12 +24,12 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 func scanIncomingDoc(row interface {
 	Scan(dest ...any) error
 }, doc *domain.IncomingDoc) error {
-	var incomingNo, docNo, docName, docPath, creatorName, updaterName, approverName, deptName *string
+	var incomingNo, docNo, docName, docPath, fileType, creatorName, updaterName, approverName, deptName *string
 	err := row.Scan(
 		&doc.ID, &incomingNo, &doc.IncomingDate, &doc.ReceivedDate, &doc.Status,
 		&doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.ApproverID,
 		&doc.ApproverDate, &doc.Remark, &doc.UpdatedAt, &doc.DeptID, &doc.OutgoingDocID,
-		&docNo, &docName, &docPath, &creatorName, &updaterName, &approverName, &deptName,
+		&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName, &approverName, &deptName,
 	)
 	if err != nil {
 		return err
@@ -38,6 +38,7 @@ func scanIncomingDoc(row interface {
 	if docNo != nil        { doc.DocNo = *docNo }
 	if docName != nil      { doc.DocName = *docName }
 	if docPath != nil      { doc.DocPath = *docPath }
+	if fileType != nil     { doc.FileType = *fileType }
 	if creatorName != nil  { doc.CreatorName = *creatorName }
 	if updaterName != nil  { doc.UpdaterName = *updaterName }
 	if approverName != nil { doc.ApproverName = *approverName }
@@ -51,14 +52,14 @@ const baseSelectIncoming = `
 		i.doc_details_id, i.folder_id, i.created_by, i.updated_by, i.approver_id,
 		i.approver_date, i.remark, i.updated_at, i.dept_id, i.outgoing_doc_id,
 		d.doc_no, d.doc_name,
-		v.doc_path,
+		v.doc_path, v.file_type,
 		u1.firstname || ' ' || u1.lastname as creator_name,
 		u2.firstname || ' ' || u2.lastname as updater_name,
 		u3.firstname || ' ' || u3.lastname as approver_name,
 		dept.dept_name
 	FROM incoming_docs i
 	LEFT JOIN doc_details d ON i.doc_details_id = d.id
-	LEFT JOIN versions v ON i.doc_details_id = v.doc_details_id AND i.folder_id = v.folder_id
+	LEFT JOIN versions v ON i.doc_details_id = v.doc_details_id AND i.folder_id IS NOT DISTINCT FROM v.folder_id
 	LEFT JOIN users u1 ON i.created_by = u1.id
 	LEFT JOIN users u2 ON i.updated_by = u2.id
 	LEFT JOIN users u3 ON i.approver_id = u3.id

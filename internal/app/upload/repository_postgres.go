@@ -156,8 +156,8 @@ func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc 
 
 func (r *postgresRepository) CreateVersion(ctx context.Context, tx pgx.Tx, version *domain.Version) error {
 	query := `
-		INSERT INTO versions (doc_details_id, folder_id, version_number, doc_path, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO versions (doc_details_id, folder_id, version_number, doc_path, file_type, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at
 	`
 	version.CreatedAt = time.Now().UTC()
@@ -166,6 +166,7 @@ func (r *postgresRepository) CreateVersion(ctx context.Context, tx pgx.Tx, versi
 		version.FolderID,
 		version.VersionNumber,
 		version.DocPath,
+		version.FileType,
 		version.CreatedAt,
 	).Scan(&version.ID, &version.CreatedAt)
 }

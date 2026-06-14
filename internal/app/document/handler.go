@@ -24,8 +24,9 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFunc) {
 	docs := e.Group("/v1/documents", middleware...)
 	docs.GET("", h.GetAllDocuments)
-	docs.GET("/:id", h.GetDocumentByID)
 	docs.GET("/folder/:folderId", h.GetDocumentsByFolder)
+	docs.GET("/:id", h.GetDocumentByID)
+	docs.GET("/:id/versions", h.GetDocumentVersions)
 	docs.POST("", h.CreateDocument)
 	docs.PUT("/:id", h.UpdateDocument)
 	docs.DELETE("/:id", h.DeleteDocument)

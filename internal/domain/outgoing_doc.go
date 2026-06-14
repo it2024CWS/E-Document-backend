@@ -20,6 +20,7 @@ type OutgoingDoc struct {
 	DocNo       string `json:"doc_no,omitempty" db:"doc_no"`
 	DocName     string `json:"doc_name,omitempty" db:"doc_name"`
 	DocPath     string `json:"doc_path,omitempty" db:"doc_path"`
+	FileType    string `json:"file_type,omitempty" db:"file_type"`
 	CreatorName string `json:"creator_name,omitempty" db:"creator_name"`
 	UpdaterName string `json:"updater_name,omitempty" db:"updater_name"`
 }
@@ -59,6 +60,7 @@ type OutgoingDocResponse struct {
 	DocNo        string         `json:"doc_no,omitempty"`
 	DocName      string         `json:"doc_name,omitempty"`
 	DocPath      string         `json:"doc_path,omitempty"`
+	FileType     string         `json:"file_type,omitempty"`
 	FolderID     *uuid.UUID     `json:"folder_id"`
 	CreatedBy    *uuid.UUID     `json:"created_by"`
 	CreatorName  string         `json:"creator_name,omitempty"`
@@ -82,6 +84,7 @@ func (o *OutgoingDoc) ToResponse() OutgoingDocResponse {
 		DocNo:        o.DocNo,
 		DocName:      o.DocName,
 		DocPath:      o.DocPath,
+		FileType:     o.FileType,
 		CreatorName:  o.CreatorName,
 		UpdaterName:  o.UpdaterName,
 		Recipients:   []RecipientInfo{},

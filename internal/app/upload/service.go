@@ -166,11 +166,17 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 	result.Document = doc
 
+	// Extract file type from the actual filename (e.g., "pdf" from "report.pdf").
+	// params.FilePath is the TUS/S3 object key (a hash) and has no extension.
+	// fileName was parsed from RelativePath which contains the real filename.
+	fileType := strings.TrimPrefix(strings.ToLower(filepath.Ext(fileName)), ".")
+
 	version := &domain.Version{
 		DocDetailsID:  doc.ID,
 		FolderID:      currentParentID,
 		VersionNumber: newVersionNumber,
 		DocPath:       params.FilePath,
+		FileType:      fileType,
 	}
 	if createErr := s.repo.CreateVersion(ctx, tx, version); createErr != nil {
 		err = createErr
