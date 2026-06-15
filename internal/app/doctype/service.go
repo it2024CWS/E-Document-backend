@@ -52,7 +52,7 @@ func (s *service) CreateDocType(ctx context.Context, req domain.CreateDocTypeReq
 		return nil, err
 	}
 
-	docType := &domain.DocType{TypeName: req.TypeName}
+	docType := &domain.DocType{TypeName: req.TypeName, Description: req.Description}
 
 	if err := s.repo.Create(ctx, docType); err != nil {
 		return nil, util.NewDatabaseError("create doc type", err)
@@ -74,6 +74,9 @@ func (s *service) UpdateDocType(ctx context.Context, id string, req domain.Updat
 
 	if req.TypeName != "" {
 		existingDocType.TypeName = req.TypeName
+	}
+	if req.Description != "" {
+		existingDocType.Description = req.Description
 	}
 
 	if err := s.repo.Update(ctx, id, existingDocType); err != nil {

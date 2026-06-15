@@ -87,7 +87,8 @@ func (s *service) CreateRole(ctx context.Context, req domain.CreateRoleRequest) 
 
 	// Create role object
 	role := &domain.UserRole{
-		RoleName: req.RoleName,
+		RoleName:    req.RoleName,
+		Description: req.Description,
 	}
 
 	// Save to database
@@ -112,9 +113,12 @@ func (s *service) UpdateRole(ctx context.Context, id string, req domain.UpdateRo
 		return nil, util.NewNotFoundError("Role", fmt.Sprintf("%d", id))
 	}
 
-	// Update role name if provided
+	// Update fields if provided
 	if req.RoleName != "" {
 		existingRole.RoleName = req.RoleName
+	}
+	if req.Description != "" {
+		existingRole.Description = req.Description
 	}
 
 	// Update in database

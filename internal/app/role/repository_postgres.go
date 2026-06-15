@@ -24,7 +24,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 // FindAll retrieves all user roles with pagination and search
 func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, search string) ([]domain.UserRole, error) {
 	query := `
-		SELECT id, role_name, created_at
+		SELECT id, role_name, description, created_at, updated_at
 		FROM user_roles
 		WHERE role_name ILIKE $1
 		ORDER BY created_at DESC
@@ -43,7 +43,9 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, sea
 		err := rows.Scan(
 			&role.ID,
 			&role.RoleName,
+			&role.Description,
 			&role.CreatedAt,
+			&role.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan role: %w", err)
@@ -78,7 +80,7 @@ func (r *postgresRepository) Count(ctx context.Context, search string) (int, err
 // FindByID retrieves a role by ID
 func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.UserRole, error) {
 	query := `
-		SELECT id, role_name, created_at
+		SELECT id, role_name, description, created_at, updated_at
 		FROM user_roles
 		WHERE id = $1
 	`
@@ -87,7 +89,9 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&role.ID,
 		&role.RoleName,
+		&role.Description,
 		&role.CreatedAt,
+		&role.UpdatedAt,
 	)
 
 	if err != nil {
@@ -103,17 +107,20 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 // Create inserts a new role
 func (r *postgresRepository) Create(ctx context.Context, role *domain.UserRole) error {
 	query := `
-		INSERT INTO user_roles (role_name, created_at)
-		VALUES ($1, $2)
-		RETURNING id, created_at
+		INSERT INTO user_roles (role_name, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $3)
+		RETURNING id, created_at, updated_at
 	`
 
-	role.CreatedAt = time.Now()
+	now := time.Now()
+	role.CreatedAt = now
+	role.UpdatedAt = now
 
 	err := r.pool.QueryRow(ctx, query,
 		role.RoleName,
-		role.CreatedAt,
-	).Scan(&role.ID, &role.CreatedAt)
+		role.Description,
+		now,
+	).Scan(&role.ID, &role.CreatedAt, &role.UpdatedAt)
 
 	if err != nil {
 		return fmt.Errorf("failed to create role: %w", err)
@@ -126,11 +133,11 @@ func (r *postgresRepository) Create(ctx context.Context, role *domain.UserRole) 
 func (r *postgresRepository) Update(ctx context.Context, id string, role *domain.UserRole) error {
 	query := `
 		UPDATE user_roles
-		SET role_name = $1
-		WHERE id = $2
+		SET role_name = $1, description = $2, updated_at = NOW()
+		WHERE id = $3
 	`
 
-	result, err := r.pool.Exec(ctx, query, role.RoleName, id)
+	result, err := r.pool.Exec(ctx, query, role.RoleName, role.Description, id)
 	if err != nil {
 		return fmt.Errorf("failed to update role: %w", err)
 	}

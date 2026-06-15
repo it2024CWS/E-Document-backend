@@ -19,7 +19,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 }
 
 func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.DocType, error) {
-	query := `SELECT id, type_name, created_at FROM doc_types ORDER BY id ASC`
+	query := `SELECT id, type_name, description, created_at, updated_at FROM doc_types ORDER BY created_at ASC`
 
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
@@ -30,7 +30,7 @@ func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.DocType, err
 	var docTypes []domain.DocType
 	for rows.Next() {
 		var docType domain.DocType
-		if err := rows.Scan(&docType.ID, &docType.TypeName, &docType.CreatedAt); err != nil {
+		if err := rows.Scan(&docType.ID, &docType.TypeName, &docType.Description, &docType.CreatedAt, &docType.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan doc type: %w", err)
 		}
 		docTypes = append(docTypes, docType)
@@ -40,10 +40,10 @@ func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.DocType, err
 }
 
 func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.DocType, error) {
-	query := `SELECT id, type_name, created_at FROM doc_types WHERE id = $1`
+	query := `SELECT id, type_name, description, created_at, updated_at FROM doc_types WHERE id = $1`
 
 	var docType domain.DocType
-	err := r.pool.QueryRow(ctx, query, id).Scan(&docType.ID, &docType.TypeName, &docType.CreatedAt)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&docType.ID, &docType.TypeName, &docType.Description, &docType.CreatedAt, &docType.UpdatedAt)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("doc type not found")
 	}
@@ -56,13 +56,17 @@ func (r *postgresRepository) FindByID(ctx context.Context, id string) (*domain.D
 
 func (r *postgresRepository) Create(ctx context.Context, docType *domain.DocType) error {
 	query := `
-		INSERT INTO doc_types (type_name, created_at)
-		VALUES ($1, $2)
-		RETURNING id, created_at
+		INSERT INTO doc_types (type_name, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $3)
+		RETURNING id, created_at, updated_at
 	`
 
-	docType.CreatedAt = time.Now()
-	err := r.pool.QueryRow(ctx, query, docType.TypeName, docType.CreatedAt).Scan(&docType.ID, &docType.CreatedAt)
+	now := time.Now()
+	docType.CreatedAt = now
+	docType.UpdatedAt = now
+
+	err := r.pool.QueryRow(ctx, query, docType.TypeName, docType.Description, now).
+		Scan(&docType.ID, &docType.CreatedAt, &docType.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create doc type: %w", err)
 	}
@@ -71,9 +75,9 @@ func (r *postgresRepository) Create(ctx context.Context, docType *domain.DocType
 }
 
 func (r *postgresRepository) Update(ctx context.Context, id string, docType *domain.DocType) error {
-	query := `UPDATE doc_types SET type_name = $1 WHERE id = $2`
+	query := `UPDATE doc_types SET type_name = $1, description = $2, updated_at = NOW() WHERE id = $3`
 
-	result, err := r.pool.Exec(ctx, query, docType.TypeName, id)
+	result, err := r.pool.Exec(ctx, query, docType.TypeName, docType.Description, id)
 	if err != nil {
 		return fmt.Errorf("failed to update doc type: %w", err)
 	}
