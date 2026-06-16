@@ -3,8 +3,8 @@ package outgoingdoc
 import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -28,6 +28,35 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/department/:deptId", h.GetOutgoingDocsByDepartment)
 	docs.POST("", h.CreateOutgoingDoc)
 	docs.POST("/:id/approve", h.ApproveOutgoingDoc)
+}
+
+func buildFilter(c echo.Context) DocFilter {
+	f := DocFilter{DocNo: c.QueryParam("doc_no")}
+
+	startStr := c.QueryParam("start_date")
+	endStr := c.QueryParam("end_date")
+
+	today := time.Now().In(time.Local).Truncate(24 * time.Hour)
+
+	if startStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", startStr, time.Local); err == nil {
+			f.StartDate = &t
+		}
+	} else {
+		f.StartDate = &today
+	}
+
+	if endStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", endStr, time.Local); err == nil {
+			t = t.Add(24 * time.Hour)
+			f.EndDate = &t
+		}
+	} else {
+		tomorrow := today.Add(24 * time.Hour)
+		f.EndDate = &tomorrow
+	}
+
+	return f
 }
 
 // GetAllOutgoingDocs godoc
@@ -56,12 +85,14 @@ func (h *Handler) GetAllOutgoingDocs(c echo.Context) error {
 		limit = 10
 	}
 
+	filter := buildFilter(c)
+
 	// Check if user has a department and is not admin
 	deptIDStr, ok := c.Get("dept_id").(string)
 	if ok && deptIDStr != "" {
 		deptID, err := uuid.Parse(deptIDStr)
 		if err == nil {
-			docs, total, err := h.service.GetOutgoingDocsByDepartment(ctx, deptID, page, limit)
+			docs, total, err := h.service.GetOutgoingDocsByDepartment(ctx, deptID, page, limit, filter)
 			if err != nil {
 				return util.HandleError(c, err)
 			}
@@ -74,7 +105,7 @@ func (h *Handler) GetAllOutgoingDocs(c echo.Context) error {
 		}
 	}
 
-	docs, total, err := h.service.GetAllOutgoingDocs(ctx, page, limit)
+	docs, total, err := h.service.GetAllOutgoingDocs(ctx, page, limit, filter)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
@@ -145,7 +176,7 @@ func (h *Handler) GetOutgoingDocsByDepartment(c echo.Context) error {
 		limit = 10
 	}
 
-	docs, total, err := h.service.GetOutgoingDocsByDepartment(ctx, deptID, page, limit)
+	docs, total, err := h.service.GetOutgoingDocsByDepartment(ctx, deptID, page, limit, buildFilter(c))
 	if err != nil {
 		return util.HandleError(c, err)
 	}

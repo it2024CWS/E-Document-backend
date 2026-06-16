@@ -39,7 +39,11 @@ func NewService(repo Repository, incomingRepo incomingdoc.Repository, outgoingRe
 }
 
 func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.DocumentResponse, error) {
-	responses, err := s.repo.FindAllJoined(ctx)
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, util.NewInvalidInputError("user_id", "invalid user ID")
+	}
+	responses, err := s.repo.FindAllJoined(ctx, ownerID)
 	if err != nil {
 		return nil, util.NewDatabaseError("get all documents", err)
 	}

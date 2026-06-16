@@ -20,14 +20,15 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 	return &postgresRepository{pool: pool}
 }
 
-func (r *postgresRepository) FindAll(ctx context.Context) ([]domain.FolderResponse, error) {
+func (r *postgresRepository) FindAll(ctx context.Context, ownerID uuid.UUID) ([]domain.FolderResponse, error) {
 	query := `
 		SELECT id, folder_name, folder_path, user_id, parent_folder_id, created_at
 		FROM folders
 		WHERE deleted_at IS NULL
+		  AND user_id = $1
 		ORDER BY created_at DESC
 	`
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find folders: %w", err)
 	}
@@ -86,7 +87,13 @@ func (r *postgresRepository) Update(ctx context.Context, id uuid.UUID, req domai
 		SET folder_name = $1, folder_path = $2, parent_folder_id = $3
 		WHERE id = $4 AND deleted_at IS NULL
 	`
-	result, err := r.pool.Exec(ctx, query, req.FolderName, req.FolderPath, req.ParentFolderID, id)
+	var parentFolderID *uuid.UUID
+	if req.ParentFolderID != "" {
+		if pID, err := uuid.Parse(req.ParentFolderID); err == nil {
+			parentFolderID = &pID
+		}
+	}
+	result, err := r.pool.Exec(ctx, query, req.FolderName, req.FolderPath, parentFolderID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update folder: %w", err)
 	}

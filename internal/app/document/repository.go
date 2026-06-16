@@ -7,7 +7,7 @@ import (
 )
 
 type Repository interface {
-	FindAllJoined(ctx context.Context) ([]domain.DocumentResponse, error)
+	FindAllJoined(ctx context.Context, ownerID uuid.UUID) ([]domain.DocumentResponse, error)
 	FindByIDJoined(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error)
 	FindByFolderIDJoined(ctx context.Context, folderID uuid.UUID) ([]domain.DocumentResponse, error)
 	

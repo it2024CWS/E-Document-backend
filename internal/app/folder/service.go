@@ -10,7 +10,7 @@ import (
 
 // Service defines the business logic interface for folders
 type Service interface {
-	GetAllFolders(ctx context.Context) ([]domain.FolderResponse, error)
+	GetAllFolders(ctx context.Context, userID string) ([]domain.FolderResponse, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (*domain.FolderResponse, error)
 	CreateFolder(ctx context.Context, userID string, req domain.CreateFolderRequest) (*domain.FolderResponse, error)
 	UpdateFolder(ctx context.Context, id uuid.UUID, req domain.CreateFolderRequest) (*domain.FolderResponse, error)
@@ -26,8 +26,12 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetAllFolders(ctx context.Context) ([]domain.FolderResponse, error) {
-	folders, err := s.repo.FindAll(ctx)
+func (s *service) GetAllFolders(ctx context.Context, userID string) ([]domain.FolderResponse, error) {
+	ownerID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, util.NewInvalidInputError("user_id", "invalid user ID")
+	}
+	folders, err := s.repo.FindAll(ctx, ownerID)
 	if err != nil {
 		return nil, util.NewDatabaseError("get all folders", err)
 	}

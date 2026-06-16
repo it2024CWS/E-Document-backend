@@ -25,6 +25,7 @@ type joinedDocScan struct {
 	DocTypeName *string
 	UserName    *string
 	FileType    *string
+	DocPath     *string
 }
 
 func buildDocResponse(row *joinedDocScan) domain.DocumentResponse {
@@ -38,6 +39,9 @@ func buildDocResponse(row *joinedDocScan) domain.DocumentResponse {
 	if row.FileType != nil {
 		resp.FileType = *row.FileType
 	}
+	if row.DocPath != nil {
+		resp.DocPath = *row.DocPath
+	}
 	return resp
 }
 
@@ -47,7 +51,8 @@ const joinedDocSelect = `
 		d.doc_type_id, d.user_id, d.created_at, d.updated_at, d.deleted_at,
 		dt.type_name AS doc_type_name,
 		u.firstname || ' ' || u.lastname AS user_name,
-		v.file_type
+		v.file_type,
+		v.doc_path
 	FROM doc_details d
 	LEFT JOIN doc_types dt ON dt.id = d.doc_type_id
 	LEFT JOIN users u ON u.id = d.user_id
@@ -62,7 +67,7 @@ func scanJoinedDoc(row pgx.Row) (*joinedDocScan, error) {
 	err := row.Scan(
 		&s.ID, &s.DocNo, &s.DocName, &desc, &s.VersionNumber, &s.Status,
 		&s.DocTypeID, &s.UserID, &s.CreatedAt, &s.UpdatedAt, &deletedAt,
-		&s.DocTypeName, &s.UserName, &s.FileType,
+		&s.DocTypeName, &s.UserName, &s.FileType, &s.DocPath,
 	)
 	if desc.Valid {
 		s.Description = &desc.String
@@ -73,15 +78,16 @@ func scanJoinedDoc(row pgx.Row) (*joinedDocScan, error) {
 	return &s, err
 }
 
-func (r *postgresRepository) FindAllJoined(ctx context.Context) ([]domain.DocumentResponse, error) {
+func (r *postgresRepository) FindAllJoined(ctx context.Context, ownerID uuid.UUID) ([]domain.DocumentResponse, error) {
 	query := joinedDocSelect + `
 		WHERE d.deleted_at IS NULL
+		  AND d.user_id = $1
 		  AND v.folder_id IS NULL
 		  AND NOT EXISTS (SELECT 1 FROM outgoing_docs o WHERE o.doc_details_id = d.id)
 		  AND NOT EXISTS (SELECT 1 FROM incoming_docs i WHERE i.doc_details_id = d.id)
 		ORDER BY d.created_at DESC`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find documents: %w", err)
 	}
@@ -95,7 +101,7 @@ func (r *postgresRepository) FindAllJoined(ctx context.Context) ([]domain.Docume
 		if err := rows.Scan(
 			&s.ID, &s.DocNo, &s.DocName, &desc, &s.VersionNumber, &s.Status,
 			&s.DocTypeID, &s.UserID, &s.CreatedAt, &s.UpdatedAt, &deletedAt,
-			&s.DocTypeName, &s.UserName, &s.FileType,
+			&s.DocTypeName, &s.UserName, &s.FileType, &s.DocPath,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan document: %w", err)
 		}
@@ -148,7 +154,7 @@ func (r *postgresRepository) FindByFolderIDJoined(ctx context.Context, folderID 
 		if err := rows.Scan(
 			&s.ID, &s.DocNo, &s.DocName, &desc, &s.VersionNumber, &s.Status,
 			&s.DocTypeID, &s.UserID, &s.CreatedAt, &s.UpdatedAt, &deletedAt,
-			&s.DocTypeName, &s.UserName, &s.FileType,
+			&s.DocTypeName, &s.UserName, &s.FileType, &s.DocPath,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan document: %w", err)
 		}

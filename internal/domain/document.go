@@ -67,6 +67,7 @@ type DocumentResponse struct {
 	UserID      *uuid.UUID     `json:"user_id,omitempty"`
 	UserName    string         `json:"user_name,omitempty"`
 	FileType    string         `json:"file_type,omitempty"`
+	DocPath     string         `json:"doc_path,omitempty"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 }

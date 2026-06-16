@@ -19,14 +19,49 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 	return &postgresRepository{pool: pool}
 }
 
-func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]domain.OutgoingDoc, int, error) {
+// buildDocFilter appends optional filter conditions to a WHERE clause.
+// baseCount is the number of positional args already bound (before calling this).
+// It returns the WHERE additions string and the new arg values to append.
+func buildDocFilter(baseCount int, filter DocFilter) (string, []any) {
+	var where string
+	var args []any
+	n := baseCount
+	if filter.DocNo != "" {
+		n++
+		args = append(args, filter.DocNo)
+		where += fmt.Sprintf(" AND d.doc_no = $%d", n)
+	}
+	if filter.StartDate != nil {
+		n++
+		args = append(args, *filter.StartDate)
+		where += fmt.Sprintf(" AND o.created_at >= $%d", n)
+	}
+	if filter.EndDate != nil {
+		n++
+		args = append(args, *filter.EndDate)
+		where += fmt.Sprintf(" AND o.created_at < $%d", n)
+	}
+	return where, args
+}
+
+func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, filter DocFilter) ([]domain.OutgoingDoc, int, error) {
+	filterWhere, filterArgs := buildDocFilter(0, filter)
+
 	var total int
-	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM outgoing_docs").Scan(&total)
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) FROM outgoing_docs o
+		LEFT JOIN doc_details d ON o.doc_details_id = d.id
+		WHERE 1=1%s
+	`, filterWhere)
+	err := r.pool.QueryRow(ctx, countQuery, filterArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count outgoing documents: %w", err)
 	}
 
-	query := `
+	queryArgs := append(filterArgs, limit, offset)
+	limitIdx := len(queryArgs) - 1
+	offsetIdx := len(queryArgs)
+	query := fmt.Sprintf(`
 		SELECT
 			o.id, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at, o.status,
 			d.doc_no, d.doc_name, v.doc_path, v.file_type,
@@ -37,11 +72,12 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
+		WHERE 1=1%s
 		ORDER BY o.created_at DESC
-		LIMIT $1 OFFSET $2
-	`
+		LIMIT $%d OFFSET $%d
+	`, filterWhere, limitIdx, offsetIdx)
 
-	rows, err := r.pool.Query(ctx, query, limit, offset)
+	rows, err := r.pool.Query(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find outgoing documents: %w", err)
 	}
@@ -109,19 +145,27 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domai
 	return &doc, nil
 }
 
-func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid.UUID, limit, offset int) ([]domain.OutgoingDoc, int, error) {
+func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid.UUID, limit, offset int, filter DocFilter) ([]domain.OutgoingDoc, int, error) {
+	// $1 is always deptID; filter args start at $2
+	filterWhere, extraArgs := buildDocFilter(1, filter)
+	baseArgs := append([]any{deptID}, extraArgs...)
+
 	var total int
-	err := r.pool.QueryRow(ctx, `
+	countQuery := fmt.Sprintf(`
 		SELECT COUNT(DISTINCT o.id) FROM outgoing_docs o
-		JOIN doc_details d ON o.doc_details_id = d.id
+		LEFT JOIN doc_details d ON o.doc_details_id = d.id
 		JOIN users u ON o.created_by = u.id
-		WHERE u.department_id = $1
-	`, deptID).Scan(&total)
+		WHERE u.department_id = $1%s
+	`, filterWhere)
+	err := r.pool.QueryRow(ctx, countQuery, baseArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count outgoing documents by department: %w", err)
 	}
 
-	query := `
+	queryArgs := append(baseArgs, limit, offset)
+	limitIdx := len(queryArgs) - 1
+	offsetIdx := len(queryArgs)
+	query := fmt.Sprintf(`
 		SELECT
 			o.id, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at, o.status,
 			d.doc_no, d.doc_name, v.doc_path, v.file_type,
@@ -132,12 +176,12 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
-		WHERE u.department_id = $1
+		WHERE u.department_id = $1%s
 		ORDER BY o.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+		LIMIT $%d OFFSET $%d
+	`, filterWhere, limitIdx, offsetIdx)
 
-	rows, err := r.pool.Query(ctx, query, deptID, limit, offset)
+	rows, err := r.pool.Query(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find outgoing documents by department: %w", err)
 	}

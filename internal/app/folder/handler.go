@@ -65,7 +65,8 @@ func (h *Handler) GetAllFolders(c echo.Context) error {
 		}
 	}
 
-	folders, err := h.service.GetAllFolders(c.Request().Context())
+	userID := util.GetUserIDFromContext(c)
+	folders, err := h.service.GetAllFolders(c.Request().Context(), userID)
 	if err != nil {
 		return util.HandleError(c, err)
 	}

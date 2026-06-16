@@ -18,9 +18,9 @@ type StepCreator interface {
 }
 
 type Service interface {
-	GetAllOutgoingDocs(ctx context.Context, page, limit int) ([]domain.OutgoingDocResponse, int, error)
+	GetAllOutgoingDocs(ctx context.Context, page, limit int, filter DocFilter) ([]domain.OutgoingDocResponse, int, error)
 	GetOutgoingDocByID(ctx context.Context, id uuid.UUID) (*domain.OutgoingDocResponse, error)
-	GetOutgoingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.OutgoingDocResponse, int, error)
+	GetOutgoingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int, filter DocFilter) ([]domain.OutgoingDocResponse, int, error)
 	CreateOutgoingDocWithParams(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, deptID *uuid.UUID) (uuid.UUID, error)
 	// CreateOutgoingDocWithRoute creates the outgoing doc (status pending, awaiting
 	// owner approval) and its ordered recipient route steps. No incoming docs are
@@ -147,9 +147,9 @@ func BuildRoute(ownerDept uuid.UUID, selected []uuid.UUID, director *uuid.UUID) 
 	return route
 }
 
-func (s *service) GetAllOutgoingDocs(ctx context.Context, page, limit int) ([]domain.OutgoingDocResponse, int, error) {
+func (s *service) GetAllOutgoingDocs(ctx context.Context, page, limit int, filter DocFilter) ([]domain.OutgoingDocResponse, int, error) {
 	offset := (page - 1) * limit
-	docs, total, err := s.repo.FindAll(ctx, limit, offset)
+	docs, total, err := s.repo.FindAll(ctx, limit, offset, filter)
 	if err != nil {
 		return nil, 0, util.NewDatabaseError("get all outgoing documents", err)
 	}
@@ -174,9 +174,9 @@ func (s *service) GetOutgoingDocByID(ctx context.Context, id uuid.UUID) (*domain
 	return &resp, nil
 }
 
-func (s *service) GetOutgoingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.OutgoingDocResponse, int, error) {
+func (s *service) GetOutgoingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int, filter DocFilter) ([]domain.OutgoingDocResponse, int, error) {
 	offset := (page - 1) * limit
-	docs, total, err := s.repo.FindByDepartmentID(ctx, deptID, limit, offset)
+	docs, total, err := s.repo.FindByDepartmentID(ctx, deptID, limit, offset, filter)
 	if err != nil {
 		return nil, 0, util.NewDatabaseError("get outgoing documents by department", err)
 	}
