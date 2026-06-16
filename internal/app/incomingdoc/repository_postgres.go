@@ -24,9 +24,9 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 func scanIncomingDoc(row interface {
 	Scan(dest ...any) error
 }, doc *domain.IncomingDoc) error {
-	var incomingNo, docNo, docName, docPath, fileType, creatorName, updaterName, approverName, deptName *string
+	var docNo, docName, docPath, fileType, creatorName, updaterName, approverName, deptName *string
 	err := row.Scan(
-		&doc.ID, &incomingNo, &doc.IncomingDate, &doc.ReceivedDate, &doc.Status,
+		&doc.ID, &doc.IncomingDate, &doc.ReceivedDate, &doc.Status,
 		&doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.ApproverID,
 		&doc.ApproverDate, &doc.Remark, &doc.UpdatedAt, &doc.DeptID, &doc.OutgoingDocID,
 		&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName, &approverName, &deptName,
@@ -34,7 +34,6 @@ func scanIncomingDoc(row interface {
 	if err != nil {
 		return err
 	}
-	if incomingNo != nil   { doc.IncomingNo = *incomingNo }
 	if docNo != nil        { doc.DocNo = *docNo }
 	if docName != nil      { doc.DocName = *docName }
 	if docPath != nil      { doc.DocPath = *docPath }
@@ -48,7 +47,7 @@ func scanIncomingDoc(row interface {
 
 const baseSelectIncoming = `
 	SELECT
-		i.id, i.incoming_no, i.incoming_date, i.received_date, i.status,
+		i.id, i.incoming_date, i.received_date, i.status,
 		i.doc_details_id, i.folder_id, i.created_by, i.updated_by, i.approver_id,
 		i.approver_date, i.remark, i.updated_at, i.dept_id, i.outgoing_doc_id,
 		d.doc_no, d.doc_name,
@@ -76,6 +75,34 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 		LIMIT $1 OFFSET $2`
 
 	rows, err := r.pool.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find incoming documents: %w", err)
+	}
+	defer rows.Close()
+
+	var documents []domain.IncomingDoc
+	for rows.Next() {
+		var doc domain.IncomingDoc
+		if err := scanIncomingDoc(rows, &doc); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan incoming document: %w", err)
+		}
+		documents = append(documents, doc)
+	}
+	return documents, total, nil
+}
+
+func (r *postgresRepository) FindAllExcludingSender(ctx context.Context, senderID uuid.UUID, limit, offset int) ([]domain.IncomingDoc, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM incoming_docs WHERE created_by != $1", senderID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count incoming documents: %w", err)
+	}
+
+	query := baseSelectIncoming + `
+		WHERE i.created_by != $1
+		ORDER BY i.updated_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.pool.Query(ctx, query, senderID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to find incoming documents: %w", err)
 	}
@@ -203,22 +230,17 @@ func (r *postgresRepository) FindByDocID(ctx context.Context, docDetailsID uuid.
 func (r *postgresRepository) Create(ctx context.Context, doc *domain.IncomingDoc) error {
 	query := `
 		INSERT INTO incoming_docs (
-			incoming_no, incoming_date, received_date, status,
+			incoming_date, received_date, status,
 			doc_details_id, folder_id, created_by, updated_by,
 			approver_id, approver_date, remark, updated_at, dept_id, outgoing_doc_id
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id`
 
 	doc.UpdatedAt = time.Now()
 
-	var incomingNo *string
-	if doc.IncomingNo != "" {
-		incomingNo = &doc.IncomingNo
-	}
-
 	err := r.pool.QueryRow(ctx, query,
-		incomingNo, doc.IncomingDate, doc.ReceivedDate, doc.Status,
+		doc.IncomingDate, doc.ReceivedDate, doc.Status,
 		doc.DocDetailsID, doc.FolderID, doc.CreatedBy, doc.UpdatedBy,
 		doc.ApproverID, doc.ApproverDate, doc.Remark, doc.UpdatedAt,
 		doc.DeptID, doc.OutgoingDocID,
@@ -254,19 +276,14 @@ func (r *postgresRepository) FindByOutgoingDocID(ctx context.Context, outgoingDo
 func (r *postgresRepository) Update(ctx context.Context, id uuid.UUID, doc *domain.IncomingDoc) error {
 	query := `
 		UPDATE incoming_docs
-		SET incoming_no = $1, updated_by = $2, approver_id = $3,
-		    received_date = $4, approver_date = $5, remark = $6,
-		    status = $7, updated_at = $8
-		WHERE id = $9`
+		SET updated_by = $1, approver_id = $2,
+		    received_date = $3, approver_date = $4, remark = $5,
+		    status = $6, updated_at = $7
+		WHERE id = $8`
 	doc.UpdatedAt = time.Now()
 
-	var incomingNo *string
-	if doc.IncomingNo != "" {
-		incomingNo = &doc.IncomingNo
-	}
-
 	result, err := r.pool.Exec(ctx, query,
-		incomingNo, doc.UpdatedBy, doc.ApproverID,
+		doc.UpdatedBy, doc.ApproverID,
 		doc.ReceivedDate, doc.ApproverDate, doc.Remark,
 		doc.Status, doc.UpdatedAt, id)
 	if err != nil {

@@ -17,7 +17,10 @@ type Repository interface {
 	GetFolderByID(ctx context.Context, folderID int) (*domain.Folder, error)
 
 	FindDocumentByNameAndFolder(ctx context.Context, tx pgx.Tx, docName string, folderID *uuid.UUID) (*domain.DocDetails, error)
+	FindDocumentByDocNo(ctx context.Context, tx pgx.Tx, docNo string) (*domain.DocDetails, error)
 	CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.DocDetails) error
+
+	FindDepartmentIDByName(ctx context.Context, name string) (*uuid.UUID, error)
 	
 	CreateVersion(ctx context.Context, tx pgx.Tx, version *domain.Version) error
 	GetLatestVersionByDocumentID(ctx context.Context, tx pgx.Tx, documentID uuid.UUID) (int, error)

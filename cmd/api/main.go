@@ -174,14 +174,20 @@ func main() {
 	doctypeService := doctype.NewService(doctypeRepo)
 	doctypeHandler := doctype.NewHandler(doctypeService)
 
-	// Initialize incomingdoc module
+	// Initialize the outgoing/incoming doc modules. Their services have a mutual
+	// dependency resolved through interfaces over the *repositories*:
+	//   - incomingdoc.Service needs outgoingdocRepo (RouteAdvancer) to advance the flow.
+	//   - outgoingdoc.Service needs incomingdocService (StepCreator) to start the flow
+	//     once the owner department head approves the outgoing doc.
+	// Because both only depend on repos (not each other's service), incomingdoc is
+	// constructed first, then injected into outgoingdoc.
+	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
 	incomingdocRepo := incomingdoc.NewPostgresRepository(pgClient.Pool)
-	incomingdocService := incomingdoc.NewService(incomingdocRepo)
+
+	incomingdocService := incomingdoc.NewService(incomingdocRepo, outgoingdocRepo)
 	incomingdocHandler := incomingdoc.NewHandler(incomingdocService)
 
-	// Initialize outgoingdoc module
-	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
-	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo)
+	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocService)
 	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
 
 	// Initialize document module

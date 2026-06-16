@@ -23,13 +23,3 @@ func GenerateDocNumber(prefix string) string {
 func GenerateLALDocNumber() string {
 	return GenerateDocNumber("LAL")
 }
-
-// GenerateIncomingNumber generates an incoming document number
-func GenerateIncomingNumber() string {
-	return GenerateDocNumber("IN")
-}
-
-// GenerateOutgoingNumber generates an outgoing document number
-func GenerateOutgoingNumber() string {
-	return GenerateDocNumber("OUT")
-}

@@ -133,6 +133,39 @@ func (r *postgresRepository) FindDocumentByNameAndFolder(ctx context.Context, tx
 	return &doc, nil
 }
 
+func (r *postgresRepository) FindDocumentByDocNo(ctx context.Context, tx pgx.Tx, docNo string) (*domain.DocDetails, error) {
+	query := `
+		SELECT id, doc_no, doc_name, version_number, status, user_id, created_at, updated_at
+		FROM doc_details
+		WHERE doc_no = $1 AND deleted_at IS NULL
+		LIMIT 1
+	`
+	var doc domain.DocDetails
+	err := tx.QueryRow(ctx, query, docNo).Scan(
+		&doc.ID, &doc.DocNo, &doc.DocName, &doc.VersionNumber, &doc.Status,
+		&doc.UserID, &doc.CreatedAt, &doc.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find document by doc_no: %w", err)
+	}
+	return &doc, nil
+}
+
+func (r *postgresRepository) FindDepartmentIDByName(ctx context.Context, name string) (*uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.pool.QueryRow(ctx, `SELECT id FROM departments WHERE dept_name = $1 LIMIT 1`, name).Scan(&id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find department by name: %w", err)
+	}
+	return &id, nil
+}
+
 func (r *postgresRepository) CreateDocument(ctx context.Context, tx pgx.Tx, doc *domain.DocDetails) error {
 	query := `
 		INSERT INTO doc_details (doc_no, doc_name, version_number, status, user_id, created_at, updated_at)

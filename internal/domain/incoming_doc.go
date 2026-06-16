@@ -19,7 +19,6 @@ const (
 // IncomingDoc represents an incoming document
 type IncomingDoc struct {
 	ID           uuid.UUID         `json:"id" db:"id"`
-	IncomingNo   string            `json:"incoming_no" db:"incoming_no" validate:"required"`
 	IncomingDate *time.Time        `json:"incoming_date" db:"incoming_date"`
 	ReceivedDate *time.Time        `json:"received_date" db:"received_date"`
 	Status       IncomingDocStatus `json:"status" db:"status"`
@@ -68,7 +67,6 @@ type ApproveIncomingDocRequest struct {
 // IncomingDocResponse represents the incoming document response
 type IncomingDocResponse struct {
 	ID           uuid.UUID         `json:"id"`
-	IncomingNo   string            `json:"incoming_no"`
 	IncomingDate *time.Time        `json:"incoming_date"`
 	ReceivedDate *time.Time        `json:"received_date"`
 	Status       IncomingDocStatus `json:"status"`
@@ -95,7 +93,6 @@ type IncomingDocResponse struct {
 func (i *IncomingDoc) ToResponse() IncomingDocResponse {
 	return IncomingDocResponse{
 		ID:           i.ID,
-		IncomingNo:   i.IncomingNo,
 		IncomingDate: i.IncomingDate,
 		ReceivedDate: i.ReceivedDate,
 		Status:       i.Status,

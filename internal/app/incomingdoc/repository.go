@@ -9,6 +9,7 @@ import (
 // Repository defines the interface for incoming document data access
 type Repository interface {
 	FindAll(ctx context.Context, limit, offset int) ([]domain.IncomingDoc, int, error)
+	FindAllExcludingSender(ctx context.Context, senderID uuid.UUID, limit, offset int) ([]domain.IncomingDoc, int, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.IncomingDoc, error)
 	FindByReceiverID(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDoc, error)
 	FindByDepartmentID(ctx context.Context, deptID uuid.UUID, limit, offset int) ([]domain.IncomingDoc, int, error)

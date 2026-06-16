@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/:id", h.GetOutgoingDocByID)
 	docs.GET("/department/:deptId", h.GetOutgoingDocsByDepartment)
 	docs.POST("", h.CreateOutgoingDoc)
+	docs.POST("/:id/approve", h.ApproveOutgoingDoc)
 }
 
 // GetAllOutgoingDocs godoc
@@ -194,4 +195,43 @@ func (h *Handler) CreateOutgoingDoc(c echo.Context) error {
 	}
 
 	return util.OKResponse(c, "Outgoing document created successfully", nil, 201)
+}
+
+// ApproveOutgoingDoc godoc
+//
+//	@Summary		Approve/Reject outgoing document
+//	@Description	Owner department head approves or rejects an outgoing document. On approval the sequential recipient flow starts.
+//	@Tags			outgoing-docs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string							true	"Outgoing Document ID (UUID)"
+//	@Param			request	body		domain.ApproveDocumentRequest	true	"Approval data"
+//	@Success		200		{object}	util.Response{data=domain.OutgoingDocResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Failure		404		{object}	util.Response
+//	@Router			/v1/outgoing-docs/{id}/approve [post]
+func (h *Handler) ApproveOutgoingDoc(c echo.Context) error {
+	ctx := c.Request().Context()
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
+	}
+
+	var req domain.ApproveDocumentRequest
+	if err := c.Bind(&req); err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("request", "invalid request body"))
+	}
+
+	if req.ApproverID == "" {
+		req.ApproverID = c.Get("user_id").(string)
+	}
+
+	doc, err := h.service.ApproveOutgoingDoc(ctx, id, req)
+	if err != nil {
+		return util.HandleError(c, err)
+	}
+
+	return util.OKResponse(c, "Outgoing document evaluated successfully", doc)
 }

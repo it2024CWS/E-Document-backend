@@ -5,6 +5,7 @@ import (
 	"e-document-backend/internal/util"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -24,6 +25,7 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFunc) {
 	docs := e.Group("/v1/documents", middleware...)
 	docs.GET("", h.GetAllDocuments)
+	docs.GET("/check-doc-no", h.CheckDocNo)
 	docs.GET("/folder/:folderId", h.GetDocumentsByFolder)
 	docs.GET("/:id", h.GetDocumentByID)
 	docs.GET("/:id/versions", h.GetDocumentVersions)
@@ -87,6 +89,32 @@ func (h *Handler) GetAllDocuments(c echo.Context) error {
 	}
 
 	return util.OKResponseWithPagination(c, "Documents retrieved successfully", docs, pagination)
+}
+
+// CheckDocNo godoc
+//
+//	@Summary		Check document number availability
+//	@Description	Returns whether a document number is free to use (not taken by another document)
+//	@Tags			documents
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			doc_no	query		string	true	"Document number to check"
+//	@Success		200		{object}	util.Response{data=map[string]bool}
+//	@Failure		400		{object}	util.Response
+//	@Router			/v1/documents/check-doc-no [get]
+func (h *Handler) CheckDocNo(c echo.Context) error {
+	ctx := c.Request().Context()
+	docNo := strings.TrimSpace(c.QueryParam("doc_no"))
+	if docNo == "" {
+		return util.HandleError(c, util.NewInvalidInputError("doc_no", "must not be empty"))
+	}
+
+	available, err := h.service.IsDocNoAvailable(ctx, docNo)
+	if err != nil {
+		return util.HandleError(c, err)
+	}
+
+	return util.OKResponse(c, "Document number availability checked", map[string]bool{"available": available})
 }
 
 // GetDocumentByID godoc

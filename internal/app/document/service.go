@@ -20,6 +20,8 @@ type Service interface {
 	DeleteDocument(ctx context.Context, id uuid.UUID) error
 	GetDocumentVersions(ctx context.Context, id uuid.UUID) ([]domain.VersionResponse, error)
 	SendDocument(ctx context.Context, userID string, id uuid.UUID, req domain.SendDocumentRequest) error
+	// IsDocNoAvailable reports whether a document number is free to use.
+	IsDocNoAvailable(ctx context.Context, docNo string) (bool, error)
 }
 
 type service struct {
@@ -42,6 +44,17 @@ func (s *service) GetAllDocuments(ctx context.Context, userID string) ([]domain.
 		return nil, util.NewDatabaseError("get all documents", err)
 	}
 	return responses, nil
+}
+
+func (s *service) IsDocNoAvailable(ctx context.Context, docNo string) (bool, error) {
+	if docNo == "" {
+		return false, util.NewInvalidInputError("doc_no", "must not be empty")
+	}
+	existing, err := s.repo.FindByDocNo(ctx, docNo)
+	if err != nil {
+		return false, util.NewDatabaseError("check doc_no", err)
+	}
+	return existing == nil, nil
 }
 
 func (s *service) GetDocumentByID(ctx context.Context, id uuid.UUID) (*domain.DocumentResponse, error) {
@@ -173,7 +186,6 @@ func (s *service) SendDocument(ctx context.Context, userID string, id uuid.UUID,
 	}
 
 	outgoing := &domain.OutgoingDoc{
-		OutgoingNo:   util.GenerateOutgoingNumber(),
 		DocDetailsID: doc.ID,
 		CreatedBy:    &senderUUID,
 		CreatedAt:    time.Now(),
@@ -183,7 +195,6 @@ func (s *service) SendDocument(ctx context.Context, userID string, id uuid.UUID,
 	}
 
 	incoming := &domain.IncomingDoc{
-		IncomingNo:   util.GenerateIncomingNumber(),
 		DocDetailsID: doc.ID,
 		CreatedBy:    &senderUUID,
 		Status:       domain.IncomingStatusPending,

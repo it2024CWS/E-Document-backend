@@ -3,14 +3,13 @@ package incomingdoc
 import (
 	"context"
 	"e-document-backend/internal/domain"
-	"e-document-backend/internal/util"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// --- stub repository ---
+// --- stub repository (shared with approve_test.go) ---
 
 type stubRepo struct {
 	created  []*domain.IncomingDoc
@@ -52,8 +51,8 @@ func (s *stubRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string
 
 // --- tests ---
 
-// TestCreateIncomingDocs_NoIncomingNoGenerated ensures incoming_no is NOT set during creation
-func TestCreateIncomingDocs_NoIncomingNoGenerated(t *testing.T) {
+// TestCreateIncomingDocs_StatusPending ensures direct incoming docs start as pending.
+func TestCreateIncomingDocs_StatusPending(t *testing.T) {
 	repo := &stubRepo{}
 	svc := &service{repo: repo}
 
@@ -62,10 +61,10 @@ func TestCreateIncomingDocs_NoIncomingNoGenerated(t *testing.T) {
 	deptID1, deptID2 := uuid.New(), uuid.New()
 
 	outgoingDocID := uuid.New()
-	err := svc.CreateIncomingDocs(context.Background(), docID, outgoingDocID, &creatorID,
+	err := svc.CreateDirectIncomingDocs(context.Background(), docID, outgoingDocID, &creatorID,
 		[]uuid.UUID{deptID1, deptID2}, "test remark")
 	if err != nil {
-		t.Fatalf("CreateIncomingDocs error: %v", err)
+		t.Fatalf("CreateDirectIncomingDocs error: %v", err)
 	}
 
 	if len(repo.created) != 2 {
@@ -73,27 +72,20 @@ func TestCreateIncomingDocs_NoIncomingNoGenerated(t *testing.T) {
 	}
 
 	for i, doc := range repo.created {
-		if doc.IncomingNo != "" {
-			t.Errorf("incoming_doc[%d]: incoming_no should be empty at creation, got %q", i, doc.IncomingNo)
-		} else {
-			t.Logf("PASS incoming_doc[%d]: incoming_no is empty ✓", i)
-		}
-
 		if doc.Status != domain.IncomingStatusPending {
 			t.Errorf("incoming_doc[%d]: expected status=pending, got %s", i, doc.Status)
 		}
 	}
 }
 
-// TestReceiveDocument_IncomingNoGeneratedOnReceive ensures incoming_no IS generated on receive
-func TestReceiveDocument_IncomingNoGeneratedOnReceive(t *testing.T) {
+// TestReceiveDocument_SetsReceived ensures receiving a pending doc sets status + received_date.
+func TestReceiveDocument_SetsReceived(t *testing.T) {
 	now := time.Now()
 	docID := uuid.New()
 	receiverID := uuid.New()
 
 	pendingDoc := &domain.IncomingDoc{
 		ID:           docID,
-		IncomingNo:   "", // null in DB — not yet received
 		Status:       domain.IncomingStatusPending,
 		DocDetailsID: uuid.New(),
 		IncomingDate: &now,
@@ -112,50 +104,31 @@ func TestReceiveDocument_IncomingNoGeneratedOnReceive(t *testing.T) {
 		Remark:        "physically received",
 	}
 
-	resp, err := svc.ReceiveDocument(context.Background(), req)
-	if err != nil {
+	if _, err := svc.ReceiveDocument(context.Background(), req); err != nil {
 		t.Fatalf("ReceiveDocument error: %v", err)
 	}
 
-	// Verify the update call carried a generated incoming_no
 	if len(repo.updated) == 0 {
 		t.Fatal("expected Update to be called")
 	}
-
 	updatedDoc := repo.updated[0]
-
-	if updatedDoc.IncomingNo == "" {
-		t.Error("FAIL: incoming_no is still empty after ReceiveDocument — should have been generated")
-	} else {
-		t.Logf("PASS: incoming_no=%q generated on receive ✓", updatedDoc.IncomingNo)
-	}
 
 	if updatedDoc.Status != domain.IncomingStatusReceived {
 		t.Errorf("expected status=received, got %s", updatedDoc.Status)
 	}
-
 	if updatedDoc.ReceivedDate == nil {
 		t.Error("received_date should be set")
 	}
-
-	// Verify format matches our number generator
-	if !isValidIncomingNo(updatedDoc.IncomingNo) {
-		t.Errorf("incoming_no format unexpected: %q", updatedDoc.IncomingNo)
-	}
-
-	_ = resp
 }
 
-// TestReceiveDocument_RejectNonPending ensures non-pending docs cannot be received again
+// TestReceiveDocument_RejectNonPending ensures non-pending docs cannot be received again.
 func TestReceiveDocument_RejectNonPending(t *testing.T) {
 	docID := uuid.New()
 	now := time.Now()
-	existingNo := util.GenerateIncomingNumber()
 
 	receivedDoc := &domain.IncomingDoc{
-		ID:         docID,
-		IncomingNo: existingNo,
-		Status:     domain.IncomingStatusReceived,
+		ID:           docID,
+		Status:       domain.IncomingStatusReceived,
 		ReceivedDate: &now,
 	}
 
@@ -173,16 +146,9 @@ func TestReceiveDocument_RejectNonPending(t *testing.T) {
 
 	if err == nil {
 		t.Error("FAIL: expected error when receiving an already-received document")
-	} else {
-		t.Logf("PASS: correctly rejected with error: %v ✓", err)
 	}
 
 	if len(repo.updated) > 0 {
 		t.Error("Update should NOT have been called for a non-pending doc")
 	}
-}
-
-func isValidIncomingNo(s string) bool {
-	// GenerateIncomingNumber produces e.g. "IN13062026010203123"
-	return len(s) > 5 && s[:2] == "IN"
 }

@@ -2,7 +2,6 @@ package incomingdoc
 
 import (
 	"e-document-backend/internal/domain"
-	mw "e-document-backend/internal/middleware"
 	"e-document-backend/internal/util"
 
 	"strconv"
@@ -29,7 +28,7 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/receiver/:receiverId", h.GetIncomingDocsByReceiver)
 	docs.GET("/department/:deptId", h.GetIncomingDocsByDepartment)
 	docs.GET("/status/:status", h.GetIncomingDocsByStatus)
-	docs.POST("/:id/receive", h.ReceiveDocument, mw.RequireRole("Secretary"))
+	docs.POST("/:id/receive", h.ReceiveDocument)
 	docs.POST("/:id/approve", h.ApproveDocument)
 }
 
@@ -75,6 +74,22 @@ func (h *Handler) GetAllIncomingDocs(c echo.Context) error {
 				ItemsPerPage: limit,
 			})
 		}
+	}
+
+	// No dept — return all docs except ones this user sent themselves.
+	userIDStr, _ := c.Get("user_id").(string)
+	userID, parseErr := uuid.Parse(userIDStr)
+	if parseErr == nil {
+		docs, total, err := h.service.GetAllIncomingDocsExcludingSender(ctx, userID, page, limit)
+		if err != nil {
+			return util.HandleError(c, err)
+		}
+		return util.OKResponseWithPagination(c, "Incoming documents retrieved successfully", docs, util.PaginationInfo{
+			CurrentPage:  page,
+			TotalPages:   (total + limit - 1) / limit,
+			TotalItems:   total,
+			ItemsPerPage: limit,
+		})
 	}
 
 	docs, total, err := h.service.GetAllIncomingDocs(ctx, page, limit)

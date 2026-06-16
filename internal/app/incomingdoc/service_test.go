@@ -1,3 +1,5 @@
+//go:build integration
+
 package incomingdoc_test
 
 import (

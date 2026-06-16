@@ -133,7 +133,26 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 	var newVersionNumber int
 
 	if existingDoc == nil {
+		// Outgoing docs use the user-entered doc_no (required, must be unique).
+		// Everything else falls back to an auto-generated number.
 		docNo := util.GenerateLALDocNumber()
+		if params.TargetModule == "outgoing" {
+			provided := strings.TrimSpace(params.ExtraMetadata["doc_no"])
+			if provided == "" {
+				err = fmt.Errorf("doc_no is required for outgoing documents")
+				return nil, err
+			}
+			existing, dErr := s.repo.FindDocumentByDocNo(ctx, tx, provided)
+			if dErr != nil {
+				err = dErr
+				return nil, err
+			}
+			if existing != nil {
+				err = fmt.Errorf("doc_no %q already exists", provided)
+				return nil, err
+			}
+			docNo = provided
+		}
 		doc = &domain.DocDetails{
 			DocNo:         docNo,
 			DocName:       titleWithoutExt,
@@ -206,49 +225,57 @@ func (s *service) postProcessModule(ctx context.Context, params ProcessUploadPar
 	}
 }
 
+// handleIncomingModule handles a standalone "incoming" upload (legacy path):
+// creates incoming docs directly for each department, no sequential route.
 func (s *service) handleIncomingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID, outgoingDocID uuid.UUID) {
-	receiverIDsStr := params.ExtraMetadata["receiver_ids"]
-	if receiverIDsStr == "" {
+	deptUUIDs := parseDeptIDs(params.ExtraMetadata["receiver_ids"])
+	if len(deptUUIDs) == 0 {
 		log.Warn().Str("upload_id", params.UploadID).Msg("Incoming module requested but no receiver_ids provided")
 		return
 	}
 
-	deptIDs := strings.Split(receiverIDsStr, ",")
-	deptUUIDs := make([]uuid.UUID, 0)
-
-	for _, deptIDStr := range deptIDs {
-		deptID, err := uuid.Parse(strings.TrimSpace(deptIDStr))
-		if err == nil {
-			deptUUIDs = append(deptUUIDs, deptID)
-		}
-	}
-
-	if len(deptUUIDs) == 0 {
-		return
-	}
-
 	remark := params.ExtraMetadata["description"]
-	if err := s.incomingService.CreateIncomingDocs(ctx, docID, outgoingDocID, &params.OwnerID, deptUUIDs, remark); err != nil {
+	if err := s.incomingService.CreateDirectIncomingDocs(ctx, docID, outgoingDocID, &params.OwnerID, deptUUIDs, remark); err != nil {
 		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create incoming docs")
 	}
 }
 
+// handleOutgoingModule builds the ordered recipient route and creates the
+// outgoing doc in the "pending" state. No incoming docs are created here — the
+// owner department head must first approve the outgoing doc, which then kicks off
+// the sequential recipient flow.
+// Route order: selected departments (in order) → Director Office (optional).
 func (s *service) handleOutgoingModule(ctx context.Context, params ProcessUploadParams, docID uuid.UUID) {
+	// Resolve owner's department (used to exclude it from the recipient route).
+	// If the owner has no department (e.g. a system admin), ownerDept stays
+	// uuid.Nil and BuildRoute simply excludes nothing.
 	userRes, err := s.userService.GetUserByID(ctx, params.OwnerID.String())
-	var deptID *uuid.UUID
+	var ownerDept uuid.UUID
 	if err == nil && userRes.DepartmentID != nil {
-		deptID = userRes.DepartmentID
+		ownerDept = *userRes.DepartmentID
 	}
 
-	outgoingDocID, err := s.outgoingService.CreateOutgoingDocWithParams(ctx, docID, &params.OwnerID, deptID)
-	if err != nil {
-		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create outgoing doc")
-		return
-	}
+	selected := parseDeptIDs(params.ExtraMetadata["receiver_ids"])
+	route := outgoingdoc.BuildRoute(ownerDept, selected, nil)
 
-	if receiverIDsStr := params.ExtraMetadata["receiver_ids"]; receiverIDsStr != "" {
-		s.handleIncomingModule(ctx, params, docID, outgoingDocID)
+	if _, err := s.outgoingService.CreateOutgoingDocWithRoute(ctx, docID, &params.OwnerID, route); err != nil {
+		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create outgoing doc with route")
 	}
+}
+
+// parseDeptIDs parses a comma-separated list of department UUIDs, preserving order.
+func parseDeptIDs(csv string) []uuid.UUID {
+	if strings.TrimSpace(csv) == "" {
+		return nil
+	}
+	parts := strings.Split(csv, ",")
+	out := make([]uuid.UUID, 0, len(parts))
+	for _, p := range parts {
+		if id, err := uuid.Parse(strings.TrimSpace(p)); err == nil {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func parsePath(path string) []string {

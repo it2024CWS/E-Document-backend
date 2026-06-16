@@ -68,6 +68,7 @@ func seedDepartments(ctx context.Context, pool *pgxpool.Pool) error {
 		{"Legal & Compliance", "Handles legal documents and regulatory compliance"},
 		{"Operations", "Manages day-to-day operational activities"},
 		{"Procurement", "Handles purchasing and vendor documents"},
+		{"Director Office", "Office of the Director — final approval authority in the document flow"},
 	}
 
 	for _, d := range departments {
