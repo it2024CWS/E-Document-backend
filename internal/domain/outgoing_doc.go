@@ -11,6 +11,7 @@ type OutgoingDoc struct {
 	ID           uuid.UUID  `json:"id" db:"id"`
 	DocDetailsID uuid.UUID  `json:"doc_details_id" db:"doc_details_id" validate:"required"`
 	FolderID     *uuid.UUID `json:"folder_id" db:"folder_id"`
+	OwnerDeptID  *uuid.UUID `json:"owner_dept_id,omitempty" db:"owner_dept_id"`
 	CreatedBy    *uuid.UUID `json:"created_by" db:"created_by"`
 	UpdatedBy    *uuid.UUID `json:"updated_by" db:"updated_by"`
 	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
@@ -19,12 +20,13 @@ type OutgoingDoc struct {
 	Status string `json:"status" db:"status"`
 
 	// Joined fields
-	DocNo       string `json:"doc_no,omitempty" db:"doc_no"`
-	DocName     string `json:"doc_name,omitempty" db:"doc_name"`
-	DocPath     string `json:"doc_path,omitempty" db:"doc_path"`
-	FileType    string `json:"file_type,omitempty" db:"file_type"`
-	CreatorName string `json:"creator_name,omitempty" db:"creator_name"`
-	UpdaterName string `json:"updater_name,omitempty" db:"updater_name"`
+	DocNo         string `json:"doc_no,omitempty" db:"doc_no"`
+	DocName       string `json:"doc_name,omitempty" db:"doc_name"`
+	DocPath       string `json:"doc_path,omitempty" db:"doc_path"`
+	FileType      string `json:"file_type,omitempty" db:"file_type"`
+	CreatorName   string `json:"creator_name,omitempty" db:"creator_name"`
+	UpdaterName   string `json:"updater_name,omitempty" db:"updater_name"`
+	OwnerDeptName string `json:"owner_dept_name,omitempty" db:"owner_dept_name"`
 }
 
 // CreateOutgoingDocRequest represents the request body for creating an outgoing document
@@ -114,6 +116,11 @@ type OutgoingDocResponse struct {
 	Recipients   []RecipientInfo `json:"recipients"`
 	StatusCounts StatusCounts   `json:"status_counts"`
 
+	// Owner department — used to populate CurrentDepartment when the doc
+	// is still at the owner-approval gate (pending or rejected by owner head).
+	OwnerDeptID   *uuid.UUID `json:"owner_dept_id,omitempty"`
+	OwnerDeptName string     `json:"owner_dept_name,omitempty"`
+
 	// Flow tracking — where the document currently sits and its overall state.
 	CurrentDepartment string `json:"current_department"`
 	CurrentStatus     string `json:"current_status"` // pending|received|rejected|"" (completed)
@@ -123,19 +130,21 @@ type OutgoingDocResponse struct {
 // ToResponse converts OutgoingDoc to OutgoingDocResponse (without recipients; service fills them in)
 func (o *OutgoingDoc) ToResponse() OutgoingDocResponse {
 	return OutgoingDocResponse{
-		ID:           o.ID,
-		DocDetailsID: o.DocDetailsID,
-		FolderID:     o.FolderID,
-		CreatedBy:    o.CreatedBy,
-		UpdatedBy:    o.UpdatedBy,
-		CreatedAt:    o.CreatedAt,
-		DocNo:        o.DocNo,
-		DocName:      o.DocName,
-		DocPath:      o.DocPath,
-		FileType:     o.FileType,
-		CreatorName:  o.CreatorName,
-		UpdaterName:  o.UpdaterName,
-		Status:       o.Status,
-		Recipients:   []RecipientInfo{},
+		ID:            o.ID,
+		DocDetailsID:  o.DocDetailsID,
+		FolderID:      o.FolderID,
+		CreatedBy:     o.CreatedBy,
+		UpdatedBy:     o.UpdatedBy,
+		CreatedAt:     o.CreatedAt,
+		DocNo:         o.DocNo,
+		DocName:       o.DocName,
+		DocPath:       o.DocPath,
+		FileType:      o.FileType,
+		CreatorName:   o.CreatorName,
+		UpdaterName:   o.UpdaterName,
+		Status:        o.Status,
+		OwnerDeptID:   o.OwnerDeptID,
+		OwnerDeptName: o.OwnerDeptName,
+		Recipients:    []RecipientInfo{},
 	}
 }

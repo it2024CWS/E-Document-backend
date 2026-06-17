@@ -251,14 +251,16 @@ func (s *service) handleOutgoingModule(ctx context.Context, params ProcessUpload
 	// uuid.Nil and BuildRoute simply excludes nothing.
 	userRes, err := s.userService.GetUserByID(ctx, params.OwnerID.String())
 	var ownerDept uuid.UUID
+	var ownerDeptID *uuid.UUID
 	if err == nil && userRes.DepartmentID != nil {
 		ownerDept = *userRes.DepartmentID
+		ownerDeptID = userRes.DepartmentID
 	}
 
 	selected := parseDeptIDs(params.ExtraMetadata["receiver_ids"])
 	route := outgoingdoc.BuildRoute(ownerDept, selected, nil)
 
-	if _, err := s.outgoingService.CreateOutgoingDocWithRoute(ctx, docID, &params.OwnerID, route); err != nil {
+	if _, err := s.outgoingService.CreateOutgoingDocWithRoute(ctx, docID, &params.OwnerID, ownerDeptID, route); err != nil {
 		log.Error().Err(err).Str("doc_id", docID.String()).Msg("Failed to create outgoing doc with route")
 	}
 }

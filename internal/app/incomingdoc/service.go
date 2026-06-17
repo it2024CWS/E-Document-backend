@@ -18,6 +18,8 @@ type RouteAdvancer interface {
 	FindRouteByIncomingDocID(ctx context.Context, incomingDocID uuid.UUID) (*domain.RouteStep, error)
 	FindNextStep(ctx context.Context, outgoingDocID uuid.UUID, currentOrder int) (*domain.RouteStep, error)
 	AttachIncomingDoc(ctx context.Context, routeID, incomingDocID uuid.UUID) error
+	// UpdateStatus propagates a rejection upstream to the parent outgoing doc.
+	UpdateStatus(ctx context.Context, id uuid.UUID, status string, approverID *uuid.UUID) error
 }
 
 // Service defines the interface for incoming document business logic
@@ -212,12 +214,20 @@ func (s *service) ApproveDocument(ctx context.Context, id uuid.UUID, req domain.
 		return nil, util.NewDatabaseError("approve document", err)
 	}
 
-	// On approval, advance the flow to the next department (if any).
 	if approved {
+		// Advance the flow to the next department (if any).
 		if err := s.advanceFlow(ctx, doc); err != nil {
-			// Log-and-continue: the approval itself succeeded; surfacing a hard
-			// error here would mislead the user. The next step can be retried.
 			log.Error().Err(err).Str("incoming_doc_id", doc.ID.String()).Msg("failed to advance flow to next step")
+		}
+	}
+
+	if rejected && s.routes != nil {
+		// Propagate the rejection to the parent outgoing doc so its status
+		// reflects "rejected" in the outgoing-docs table.
+		if step, stepErr := s.routes.FindRouteByIncomingDocID(ctx, doc.ID); stepErr == nil && step != nil {
+			if updateErr := s.routes.UpdateStatus(ctx, step.OutgoingDocID, domain.OutgoingStatusRejected, doc.ApproverID); updateErr != nil {
+				log.Error().Err(updateErr).Str("outgoing_doc_id", step.OutgoingDocID.String()).Msg("failed to propagate rejection to outgoing doc")
+			}
 		}
 	}
 

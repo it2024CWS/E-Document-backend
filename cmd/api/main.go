@@ -10,6 +10,7 @@ import (
 	"e-document-backend/internal/app/folder"
 	"e-document-backend/internal/app/incomingdoc"
 	"e-document-backend/internal/app/outgoingdoc"
+	"e-document-backend/internal/app/rejecteddoc"
 	"e-document-backend/internal/app/role"
 	"e-document-backend/internal/app/sector"
 	"e-document-backend/internal/app/upload"
@@ -190,6 +191,12 @@ func main() {
 	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocService)
 	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
 
+	// Initialize rejected-document report module (read-only; reports inbound +
+	// outbound rejections across all departments). Only needs the pgx pool.
+	rejectedDocRepo := rejecteddoc.NewPostgresRepository(pgClient.Pool)
+	rejectedDocService := rejecteddoc.NewService(rejectedDocRepo)
+	rejectedDocHandler := rejecteddoc.NewHandler(rejectedDocService)
+
 	// Initialize document module
 	documentRepo := document.NewPostgresRepository(pgClient.Pool)
 	documentService := document.NewService(documentRepo, incomingdocRepo, outgoingdocRepo)
@@ -249,6 +256,8 @@ func main() {
 	incomingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register outgoingdoc routes
 	outgoingdocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
+	// Register rejected-document report routes
+	rejectedDocHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 	// Register upload routes
 	uploadHandler.RegisterRoutes(api, customMiddleware.AuthMiddleware(authService))
 

@@ -25,7 +25,7 @@ type Service interface {
 	// CreateOutgoingDocWithRoute creates the outgoing doc (status pending, awaiting
 	// owner approval) and its ordered recipient route steps. No incoming docs are
 	// created — the recipient flow starts only when the owner head approves.
-	CreateOutgoingDocWithRoute(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, orderedDeptIDs []uuid.UUID) (uuid.UUID, error)
+	CreateOutgoingDocWithRoute(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, ownerDeptID *uuid.UUID, orderedDeptIDs []uuid.UUID) (uuid.UUID, error)
 	// ApproveOutgoingDoc is the owner department head's gate: on approval the first
 	// recipient step's incoming doc is created; on rejection the flow stops.
 	ApproveOutgoingDoc(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.OutgoingDocResponse, error)
@@ -112,11 +112,11 @@ func (s *service) enrichResponse(ctx context.Context, resp *domain.OutgoingDocRe
 	case domain.OutgoingStatusPending:
 		resp.FlowStatus = domain.FlowStatusPendingApproval
 		resp.CurrentStatus = domain.OutgoingStatusPending
-		resp.CurrentDepartment = ""
+		resp.CurrentDepartment = resp.OwnerDeptName
 	case domain.OutgoingStatusRejected:
 		resp.FlowStatus = domain.FlowStatusRejected
 		resp.CurrentStatus = domain.OutgoingStatusRejected
-		resp.CurrentDepartment = ""
+		resp.CurrentDepartment = resp.OwnerDeptName
 	}
 }
 
@@ -204,9 +204,10 @@ func (s *service) CreateOutgoingDocWithParams(ctx context.Context, docDetailsID 
 // CreateOutgoingDocWithRoute creates the outgoing doc (status pending) and inserts
 // its ordered recipient route steps. It does NOT create any incoming docs — the
 // recipient flow starts only when the owner department head approves the doc.
-func (s *service) CreateOutgoingDocWithRoute(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, orderedDeptIDs []uuid.UUID) (uuid.UUID, error) {
+func (s *service) CreateOutgoingDocWithRoute(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, ownerDeptID *uuid.UUID, orderedDeptIDs []uuid.UUID) (uuid.UUID, error) {
 	doc := &domain.OutgoingDoc{
 		DocDetailsID: docDetailsID,
+		OwnerDeptID:  ownerDeptID,
 		CreatedBy:    creatorID,
 		Status:       domain.OutgoingStatusPending,
 	}

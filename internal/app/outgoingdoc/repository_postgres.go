@@ -31,6 +31,11 @@ func buildDocFilter(baseCount int, filter DocFilter) (string, []any) {
 		args = append(args, filter.DocNo)
 		where += fmt.Sprintf(" AND d.doc_no = $%d", n)
 	}
+	if filter.Status != "" {
+		n++
+		args = append(args, filter.Status)
+		where += fmt.Sprintf(" AND o.status = $%d", n)
+	}
 	if filter.StartDate != nil {
 		n++
 		args = append(args, *filter.StartDate)
@@ -63,15 +68,17 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 	offsetIdx := len(queryArgs)
 	query := fmt.Sprintf(`
 		SELECT
-			o.id, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at, o.status,
+			o.id, o.doc_details_id, o.folder_id, o.owner_dept_id, o.created_by, o.updated_by, o.created_at, o.status,
 			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
-			u2.firstname || ' ' || u2.lastname as updater_name
+			u2.firstname || ' ' || u2.lastname as updater_name,
+			dept.dept_name as owner_dept_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
 		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
+		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
 		WHERE 1=1%s
 		ORDER BY o.created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -86,10 +93,10 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 	var documents []domain.OutgoingDoc
 	for rows.Next() {
 		var doc domain.OutgoingDoc
-		var docNo, docName, docPath, fileType, creatorName, updaterName *string
+		var docNo, docName, docPath, fileType, creatorName, updaterName, ownerDeptName *string
 		if err := rows.Scan(
-			&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
-			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
+			&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.OwnerDeptID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
+			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName, &ownerDeptName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan outgoing document: %w", err)
 		}
@@ -100,6 +107,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 		if fileType != nil { doc.FileType = *fileType }
 		if creatorName != nil { doc.CreatorName = *creatorName }
 		if updaterName != nil { doc.UpdaterName = *updaterName }
+		if ownerDeptName != nil { doc.OwnerDeptName = *ownerDeptName }
 
 		documents = append(documents, doc)
 	}
@@ -110,23 +118,25 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.OutgoingDoc, error) {
 	query := `
 		SELECT
-			o.id, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at, o.status,
+			o.id, o.doc_details_id, o.folder_id, o.owner_dept_id, o.created_by, o.updated_by, o.created_at, o.status,
 			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
-			u2.firstname || ' ' || u2.lastname as updater_name
+			u2.firstname || ' ' || u2.lastname as updater_name,
+			dept.dept_name as owner_dept_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
 		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
+		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
 		WHERE o.id = $1
 	`
 
 	var doc domain.OutgoingDoc
-	var docNo, docName, docPath, fileType, creatorName, updaterName *string
+	var docNo, docName, docPath, fileType, creatorName, updaterName, ownerDeptName *string
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
-		&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
+		&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.OwnerDeptID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
+		&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName, &ownerDeptName,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("outgoing document not found")
@@ -141,6 +151,7 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domai
 	if fileType != nil { doc.FileType = *fileType }
 	if creatorName != nil { doc.CreatorName = *creatorName }
 	if updaterName != nil { doc.UpdaterName = *updaterName }
+	if ownerDeptName != nil { doc.OwnerDeptName = *ownerDeptName }
 
 	return &doc, nil
 }
@@ -167,15 +178,17 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 	offsetIdx := len(queryArgs)
 	query := fmt.Sprintf(`
 		SELECT
-			o.id, o.doc_details_id, o.folder_id, o.created_by, o.updated_by, o.created_at, o.status,
+			o.id, o.doc_details_id, o.folder_id, o.owner_dept_id, o.created_by, o.updated_by, o.created_at, o.status,
 			d.doc_no, d.doc_name, v.doc_path, v.file_type,
 			u.firstname || ' ' || u.lastname as creator_name,
-			u2.firstname || ' ' || u2.lastname as updater_name
+			u2.firstname || ' ' || u2.lastname as updater_name,
+			dept.dept_name as owner_dept_name
 		FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
 		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
+		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
 		WHERE u.department_id = $1%s
 		ORDER BY o.created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -190,19 +203,20 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 	var documents []domain.OutgoingDoc
 	for rows.Next() {
 		var doc domain.OutgoingDoc
-		var docNo, docName, docPath, fileType, creatorName, updaterName *string
+		var docNo, docName, docPath, fileType, creatorName, updaterName, ownerDeptName *string
 		if err := rows.Scan(
-			&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
-			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName,
+			&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.OwnerDeptID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
+			&docNo, &docName, &docPath, &fileType, &creatorName, &updaterName, &ownerDeptName,
 		); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan outgoing document: %w", err)
 		}
-		if docNo != nil      { doc.DocNo = *docNo }
-		if docName != nil    { doc.DocName = *docName }
-		if docPath != nil    { doc.DocPath = *docPath }
-		if fileType != nil   { doc.FileType = *fileType }
+		if docNo != nil       { doc.DocNo = *docNo }
+		if docName != nil     { doc.DocName = *docName }
+		if docPath != nil     { doc.DocPath = *docPath }
+		if fileType != nil    { doc.FileType = *fileType }
 		if creatorName != nil { doc.CreatorName = *creatorName }
 		if updaterName != nil { doc.UpdaterName = *updaterName }
+		if ownerDeptName != nil { doc.OwnerDeptName = *ownerDeptName }
 		documents = append(documents, doc)
 	}
 	return documents, total, nil
@@ -268,8 +282,8 @@ func (r *postgresRepository) FindRecipientsByOutgoingDocID(ctx context.Context, 
 
 func (r *postgresRepository) Create(ctx context.Context, doc *domain.OutgoingDoc) error {
 	query := `
-		INSERT INTO outgoing_docs (doc_details_id, folder_id, created_by, updated_by, created_at, status)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO outgoing_docs (doc_details_id, folder_id, owner_dept_id, created_by, updated_by, created_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -278,7 +292,7 @@ func (r *postgresRepository) Create(ctx context.Context, doc *domain.OutgoingDoc
 		doc.Status = domain.OutgoingStatusPending
 	}
 
-	err := r.pool.QueryRow(ctx, query, doc.DocDetailsID, doc.FolderID, doc.CreatedBy, doc.UpdatedBy, doc.CreatedAt, doc.Status).
+	err := r.pool.QueryRow(ctx, query, doc.DocDetailsID, doc.FolderID, doc.OwnerDeptID, doc.CreatedBy, doc.UpdatedBy, doc.CreatedAt, doc.Status).
 		Scan(&doc.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create outgoing document: %w", err)

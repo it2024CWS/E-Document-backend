@@ -31,7 +31,10 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 }
 
 func buildFilter(c echo.Context) DocFilter {
-	f := DocFilter{DocNo: c.QueryParam("doc_no")}
+	f := DocFilter{
+		DocNo:  c.QueryParam("doc_no"),
+		Status: c.QueryParam("status"),
+	}
 
 	startStr := c.QueryParam("start_date")
 	endStr := c.QueryParam("end_date")

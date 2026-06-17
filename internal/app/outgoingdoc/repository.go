@@ -11,6 +11,7 @@ import (
 // DocFilter holds optional query filters for outgoing document listing.
 type DocFilter struct {
 	DocNo     string
+	Status    string
 	StartDate *time.Time
 	EndDate   *time.Time // exclusive upper bound (caller adds 24h)
 }
