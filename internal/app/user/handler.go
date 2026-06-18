@@ -41,6 +41,7 @@ func (h *Handler) RegisterRoutes(e *echo.Group, authMiddleware echo.MiddlewareFu
 	users.GET("", h.GetAllUsers)
 	users.GET("/:id", h.GetUserByID)
 	users.PUT("/:id", h.UpdateUser)
+	users.PUT("/:id/reset-password", h.ResetPassword)
 	users.GET("/:id/profile-picture", h.GetProfilePicture)
 	users.POST("/:id/profile-picture", h.UploadProfilePicture)
 	users.DELETE("/:id/profile-picture", h.DeleteProfilePicture)
@@ -464,6 +465,39 @@ func (h *Handler) DeleteProfilePicture(c echo.Context) error {
 	}
 
 	return util.OKResponse(c, "Profile picture deleted successfully", updatedUser)
+}
+
+// ResetPassword godoc
+//
+//	@Summary		Reset user password
+//	@Description	Reset a user's password (admin operation)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string						true	"User ID"
+//	@Param			body	body		domain.ResetPasswordRequest	true	"New password"
+//	@Success		200		{object}	util.Response
+//	@Failure		400		{object}	util.Response
+//	@Failure		404		{object}	util.Response
+//	@Router			/v1/users/{id}/reset-password [put]
+func (h *Handler) ResetPassword(c echo.Context) error {
+	id := c.Param("id")
+
+	var req domain.ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return util.HandleError(c, util.ErrorResponse("Invalid request body", util.INVALID_INPUT, 400, err.Error()))
+	}
+
+	if err := util.ValidateStruct(&req); err != nil {
+		return util.HandleError(c, err)
+	}
+
+	if err := h.service.ResetPassword(c.Request().Context(), id, req); err != nil {
+		return util.HandleError(c, err)
+	}
+
+	return util.OKResponse(c, "Password reset successfully", nil)
 }
 
 // DeleteUser godoc

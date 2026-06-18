@@ -24,7 +24,7 @@ func NewAlreadyExistsError(resource string, field string, value string) error {
 	return &CustomError{
 		Message:    fmt.Sprintf("%s already exists", resource),
 		ErrorCode:  errorCode,
-		StatusCode: 400,
+		StatusCode: 409,
 		Detail:     fmt.Sprintf("%s with %s '%s' already exists", resource, field, value),
 	}
 }

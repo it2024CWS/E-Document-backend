@@ -28,8 +28,8 @@ func buildDocFilter(baseCount int, filter DocFilter) (string, []any) {
 	n := baseCount
 	if filter.DocNo != "" {
 		n++
-		args = append(args, filter.DocNo)
-		where += fmt.Sprintf(" AND d.doc_no = $%d", n)
+		args = append(args, "%"+filter.DocNo+"%")
+		where += fmt.Sprintf(" AND d.doc_no ILIKE $%d", n)
 	}
 	if filter.Status != "" {
 		n++

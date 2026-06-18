@@ -7,7 +7,6 @@ import (
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -59,7 +58,7 @@ func NewService(repo Repository, incomingService incomingdoc.Service, outgoingSe
 func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploadParams) (*ProcessUploadResult, error) {
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, util.ErrorResponse("Failed to begin transaction", util.TRANSACTION_BEGIN_FAILED, 500, err.Error())
 	}
 
 	defer func() {
@@ -76,7 +75,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 	pathParts := parsePath(params.RelativePath)
 	if len(pathParts) == 0 {
-		err = fmt.Errorf("invalid relative path: %s", params.RelativePath)
+		err = util.ErrorResponse("Invalid file path", util.INVALID_FILE_PATH, 400, "invalid relative path: "+params.RelativePath)
 		return nil, err
 	}
 
@@ -139,7 +138,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 		if params.TargetModule == "outgoing" {
 			provided := strings.TrimSpace(params.ExtraMetadata["doc_no"])
 			if provided == "" {
-				err = fmt.Errorf("doc_no is required for outgoing documents")
+				err = util.ErrorResponse("Document number required", util.DOC_NO_REQUIRED, 400, "doc_no is required for outgoing documents")
 				return nil, err
 			}
 			existing, dErr := s.repo.FindDocumentByDocNo(ctx, tx, provided)
@@ -148,7 +147,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 				return nil, err
 			}
 			if existing != nil {
-				err = fmt.Errorf("doc_no %q already exists", provided)
+				err = util.ErrorResponse("Document number already exists", util.DOC_NO_ALREADY_EXISTS, 409, "doc_no \""+provided+"\" already exists")
 				return nil, err
 			}
 			docNo = provided
@@ -205,7 +204,7 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		err = commitErr
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, util.ErrorResponse("Failed to commit transaction", util.TRANSACTION_COMMIT_FAILED, 500, commitErr.Error())
 	}
 
 	if params.TargetModule != "" {

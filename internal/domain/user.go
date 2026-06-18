@@ -102,6 +102,12 @@ func (u *User) ToResponse() UserResponse {
 	}
 }
 
+// ResetPasswordRequest represents the request body for resetting a user's password
+type ResetPasswordRequest struct {
+	NewPassword     string `json:"new_password" validate:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,min=6"`
+}
+
 // Auth-related structs
 
 // LoginRequest represents the request body for user login

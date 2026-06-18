@@ -242,7 +242,7 @@ func (s *service) ApproveDocument(ctx context.Context, id uuid.UUID, req domain.
 // advanceFlow creates the next route step's incoming document after approval.
 func (s *service) advanceFlow(ctx context.Context, approvedDoc *domain.IncomingDoc) error {
 	if s.routes == nil {
-		return fmt.Errorf("route advancer not configured")
+		return util.ErrorResponse("Route advancer not configured", util.ROUTE_ADVANCER_NOT_CONFIGURED, 500, "route advancer dependency is nil")
 	}
 	step, err := s.routes.FindRouteByIncomingDocID(ctx, approvedDoc.ID)
 	if err != nil {
@@ -280,11 +280,11 @@ func (s *service) CreateIncomingDocForStep(ctx context.Context, docDetailsID uui
 		DeptID:        &deptID,
 	}
 	if err := s.repo.Create(ctx, doc); err != nil {
-		return fmt.Errorf("failed to create incoming doc for dept %s: %w", deptID, err)
+		return util.ErrorResponse("Failed to create incoming document", util.INCOMING_DOC_CREATE_FAILED, 500, "failed to create incoming doc for dept "+deptID.String()+": "+err.Error())
 	}
 	if s.routes != nil {
 		if err := s.routes.AttachIncomingDoc(ctx, step.ID, doc.ID); err != nil {
-			return fmt.Errorf("failed to attach incoming doc to route step: %w", err)
+			return util.ErrorResponse("Failed to attach incoming document to route", util.ROUTE_ATTACH_FAILED, 500, "failed to attach incoming doc to route step: "+err.Error())
 		}
 	}
 	return nil
@@ -309,7 +309,7 @@ func (s *service) CreateDirectIncomingDocs(ctx context.Context, docDetailsID uui
 			DeptID:        &deptIDCopy,
 		}
 		if err := s.repo.Create(ctx, doc); err != nil {
-			return fmt.Errorf("failed to create incoming doc for dept %s: %w", deptID, err)
+			return util.ErrorResponse("Failed to create incoming document", util.INCOMING_DOC_CREATE_FAILED, 500, "failed to create incoming doc for dept "+deptID.String()+": "+err.Error())
 		}
 	}
 	return nil

@@ -24,6 +24,7 @@ type Service interface {
 	GetAllUsers(ctx context.Context, page, limit int, search string, currentUserID string) ([]domain.UserResponse, int, error)
 	UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error)
 	UpdateProfilePicture(ctx context.Context, id string, profilePictureURL string) (*domain.UserResponse, error)
+	ResetPassword(ctx context.Context, id string, req domain.ResetPasswordRequest) error
 	DeleteUser(ctx context.Context, id string) error
 	GetUsersByDepartment(ctx context.Context, deptID uuid.UUID) ([]domain.UserResponse, error)
 }
@@ -199,7 +200,7 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 				return nil, util.ErrorResponse(
 					"Email already exists",
 					util.EMAIL_ALREADY_EXISTS,
-					400,
+					409,
 					fmt.Sprintf("user with email %s already exists", normalizedEmail),
 				)
 			}
@@ -216,7 +217,7 @@ func (s *service) UpdateUser(ctx context.Context, id string, req domain.UpdateUs
 				return nil, util.ErrorResponse(
 					"Username already exists",
 					util.USER_ALREADY_EXISTS,
-					400,
+					409,
 					fmt.Sprintf("user with username %s already exists", normalizedUsername),
 				)
 			}
@@ -346,6 +347,49 @@ func (s *service) UpdateProfilePicture(ctx context.Context, id string, profilePi
 
 	response := updatedUser.ToResponse()
 	return &response, nil
+}
+
+// ResetPassword resets a user's password by ID (admin operation)
+func (s *service) ResetPassword(ctx context.Context, id string, req domain.ResetPasswordRequest) error {
+	dbCtx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	if req.NewPassword != req.ConfirmPassword {
+		return util.ErrorResponse(
+			"Passwords do not match",
+			util.PASSWORD_MISMATCH,
+			400,
+			"new_password and confirm_password do not match",
+		)
+	}
+
+	existingUser, err := s.repo.FindByID(dbCtx, id)
+	if err != nil {
+		return util.ErrorResponse(
+			"User not found",
+			util.USER_NOT_FOUND,
+			404,
+			fmt.Sprintf("user with id %s not found", id),
+		)
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return util.NewInternalError(fmt.Sprintf("failed to hash password: %v", err))
+	}
+
+	existingUser.Password = string(hashedPassword)
+
+	if err := s.repo.Update(dbCtx, id, existingUser); err != nil {
+		return util.ErrorResponse(
+			"Failed to reset password",
+			util.DATABASE_ERROR,
+			500,
+			err.Error(),
+		)
+	}
+
+	return nil
 }
 
 // DeleteUser deletes a user by ID

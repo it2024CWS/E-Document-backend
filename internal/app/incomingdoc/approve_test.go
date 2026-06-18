@@ -27,6 +27,9 @@ func (s *stubRoutes) AttachIncomingDoc(ctx context.Context, routeID, incomingDoc
 	s.attached = append(s.attached, routeID)
 	return nil
 }
+func (s *stubRoutes) UpdateStatus(ctx context.Context, id uuid.UUID, status string, approverID *uuid.UUID) error {
+	return nil
+}
 
 // receivedDoc builds an incoming doc in "received" state ready to be approved.
 func receivedDoc() *domain.IncomingDoc {

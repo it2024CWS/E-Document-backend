@@ -116,7 +116,11 @@ func (s *service) enrichResponse(ctx context.Context, resp *domain.OutgoingDocRe
 	case domain.OutgoingStatusRejected:
 		resp.FlowStatus = domain.FlowStatusRejected
 		resp.CurrentStatus = domain.OutgoingStatusRejected
-		resp.CurrentDepartment = resp.OwnerDeptName
+		// Only point at the owner dept when the owner head rejected before dispatch.
+		// If a recipient already rejected, deriveFlow has the correct department.
+		if resp.StatusCounts.Rejected == 0 {
+			resp.CurrentDepartment = resp.OwnerDeptName
+		}
 	}
 }
 
@@ -281,7 +285,7 @@ func (s *service) ApproveOutgoingDoc(ctx context.Context, id uuid.UUID, req doma
 // department head approves the outgoing document.
 func (s *service) startRecipientFlow(ctx context.Context, doc *domain.OutgoingDoc, remark string) error {
 	if s.stepCreator == nil {
-		return fmt.Errorf("step creator not configured")
+		return util.ErrorResponse("Step creator not configured", util.STEP_CREATOR_NOT_CONFIGURED, 500, "step creator dependency is nil")
 	}
 	// The first recipient is sequence_order 1 (FindNextStep after order 0).
 	first, err := s.repo.FindNextStep(ctx, doc.ID, 0)

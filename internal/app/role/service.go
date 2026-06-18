@@ -110,7 +110,7 @@ func (s *service) UpdateRole(ctx context.Context, id string, req domain.UpdateRo
 	// Check if role exists
 	existingRole, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Role", fmt.Sprintf("%d", id))
+		return nil, util.NewNotFoundError("Role", id)
 	}
 
 	// Update fields if provided

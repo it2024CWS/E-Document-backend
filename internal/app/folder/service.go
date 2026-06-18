@@ -44,7 +44,7 @@ func (s *service) GetAllFolders(ctx context.Context, userID string) ([]domain.Fo
 func (s *service) GetFolderByID(ctx context.Context, id uuid.UUID) (*domain.FolderResponse, error) {
 	folder, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		return nil, util.NewNotFoundError("Folder", "not found")
+		return nil, util.NewNotFoundError("Folder", id.String())
 	}
 	return folder, nil
 }
@@ -78,7 +78,7 @@ func (s *service) CreateFolder(ctx context.Context, userID string, req domain.Cr
 
 func (s *service) UpdateFolder(ctx context.Context, id uuid.UUID, req domain.CreateFolderRequest) (*domain.FolderResponse, error) {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return nil, util.NewNotFoundError("Folder", "not found")
+		return nil, util.NewNotFoundError("Folder", id.String())
 	}
 
 	updated, err := s.repo.Update(ctx, id, req)
@@ -90,7 +90,7 @@ func (s *service) UpdateFolder(ctx context.Context, id uuid.UUID, req domain.Cre
 
 func (s *service) DeleteFolder(ctx context.Context, id uuid.UUID) error {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		return util.NewNotFoundError("Folder", "not found")
+		return util.NewNotFoundError("Folder", id.String())
 	}
 
 	if err := s.repo.Delete(ctx, id); err != nil {
