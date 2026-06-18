@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"strings"
+
 	"e-document-backend/internal/app/auth"
 	"e-document-backend/internal/app/department"
 	"e-document-backend/internal/app/doctype"
@@ -68,8 +70,28 @@ func main() {
 
 	// Middleware
 	e.Use(middleware.Recover())
+
+	// Allowed CORS origins:
+	//   - Local dev defaults are always included.
+	//   - Extra origins (e.g. your public domain) can be added via CORS_ALLOWED_ORIGINS,
+	//     comma-separated, e.g. CORS_ALLOWED_ORIGINS=https://app.example.com,https://*.trycloudflare.com
+	allowedOrigins := []string{
+		"http://localhost",
+		"http://localhost:80",
+		"http://localhost:5173",
+		"http://localhost:5001",
+		"http://localhost:8080",
+	}
+	if extra := os.Getenv("CORS_ALLOWED_ORIGINS"); extra != "" {
+		for _, o := range strings.Split(extra, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				allowedOrigins = append(allowedOrigins, o)
+			}
+		}
+	}
+
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173", "http://localhost:5001"}, // ⚠️ ต้องระบุ origin ชัดเจน ไม่ใช่ "*"
+		AllowOrigins: allowedOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions, http.MethodHead},
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
@@ -145,6 +167,11 @@ func main() {
 	// Initialize file module (Service-Handler) for generating presigned URLs for files in MinIO
 	fileService := file.NewService(minioClient)
 	fileHandler := file.NewHandler(fileService)
+
+	// Seed master data (roles, departments, sectors, doc types) — idempotent
+	if err := seed.SeedMasterData(ctx, pgClient.Pool); err != nil {
+		logger.Warnf("Failed to seed master data: %v", err)
+	}
 
 	// Seed admin user if it doesn't exist
 	if err := seed.SeedAdmin(ctx, userRepo, pgClient.Pool, cfg); err != nil {

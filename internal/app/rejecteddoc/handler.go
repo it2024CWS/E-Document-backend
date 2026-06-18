@@ -28,14 +28,13 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 // GetRejectedDocs godoc
 //
 //	@Summary		Get rejected documents report
-//	@Description	Report of rejected documents across all departments (inbound + outbound), with optional department and date-range filters.
+//	@Description	Report of rejected documents for the caller's own department (inbound + outbound), with optional date-range filters.
 //	@Tags			rejected-docs
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			page		query		int		false	"Page number (default 1)"
 //	@Param			limit		query		int		false	"Items per page (default 10)"
-//	@Param			dept_id		query		string	false	"Department UUID filter"
 //	@Param			start_date	query		string	false	"Start date (YYYY-MM-DD)"
 //	@Param			end_date	query		string	false	"End date (YYYY-MM-DD)"
 //	@Success		200			{object}	util.Response{data=[]domain.RejectedDocResponse}
@@ -44,6 +43,17 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 //	@Router			/v1/rejected-docs [get]
 func (h *Handler) GetRejectedDocs(c echo.Context) error {
 	ctx := c.Request().Context()
+
+	// Scope to the caller's own department
+	deptIDStr, ok := c.Get("dept_id").(string)
+	if !ok || deptIDStr == "" {
+		return util.HandleError(c, util.NewUnauthorizedError("department not assigned to user"))
+	}
+	parsed, err := uuid.Parse(deptIDStr)
+	if err != nil {
+		return util.HandleError(c, util.NewUnauthorizedError("invalid department in token"))
+	}
+	deptID := &parsed
 
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	if page <= 0 {
@@ -54,15 +64,6 @@ func (h *Handler) GetRejectedDocs(c echo.Context) error {
 		limit = 10
 	}
 
-	var deptID *uuid.UUID
-	if v := c.QueryParam("dept_id"); v != "" {
-		parsed, err := uuid.Parse(v)
-		if err != nil {
-			return util.HandleError(c, util.NewInvalidInputError("dept_id", "must be a valid UUID"))
-		}
-		deptID = &parsed
-	}
-
 	var start, end *time.Time
 	if v := c.QueryParam("start_date"); v != "" {
 		if t, err := time.ParseInLocation("2006-01-02", v, time.Local); err == nil {
@@ -71,7 +72,6 @@ func (h *Handler) GetRejectedDocs(c echo.Context) error {
 	}
 	if v := c.QueryParam("end_date"); v != "" {
 		if t, err := time.ParseInLocation("2006-01-02", v, time.Local); err == nil {
-			// inclusive end day
 			t = t.Add(24 * time.Hour)
 			end = &t
 		}

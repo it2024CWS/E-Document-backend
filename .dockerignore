@@ -1,6 +1,7 @@
 **/.classpath
 **/.dockerignore
 **/.env
+**/.env.*
 **/.git
 **/.gitignore
 **/.project
@@ -21,5 +22,9 @@
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml
+**/tmp
+**/*.exe
+**/*.log
+**/graphify-out
 LICENSE
 README.md

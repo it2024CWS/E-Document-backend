@@ -139,6 +139,7 @@ func (h *Handler) initTusHandler() error {
 	locker.UseIn(composer)
 
 	tusHandler, err := tusd.NewUnroutedHandler(tusd.Config{
+		BasePath:                h.tusConfig.BasePath + "/files/",
 		StoreComposer:           composer,
 		NotifyCompleteUploads:   true,
 		RespectForwardedHeaders: true,
@@ -303,27 +304,21 @@ func (w *locationFixerWriter) WriteHeader(statusCode int) {
 			Msg("locationFixerWriter: Original Location header")
 
 		if location != "" {
-			var uploadID string
-
-			// Extract upload ID from location (could be absolute or relative URL)
+			// Extract just the last path segment — that's the tusd upload ID.
+			// Works for both absolute ("http://host/base/id") and relative ("/base/id") forms.
+			var rawPath string
 			if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
-				// Find ":5001" and extract everything after it
-				idx := strings.Index(location, ":5001")
-				if idx >= 0 {
-					// Everything after ":5001" is the upload ID
-					uploadID = location[idx+5:] // +5 to skip ":5001"
-				} else {
-					// Try normal URL parsing
-					if u, err := url.Parse(location); err == nil {
-						uploadID = strings.TrimPrefix(u.Path, "/")
-					}
+				if u, err := url.Parse(location); err == nil {
+					rawPath = u.Path
 				}
 			} else {
-				// Relative URL
-				uploadID = strings.TrimPrefix(location, "/")
+				rawPath = location
 			}
 
-			// Set corrected Location header (always relative)
+			// Last non-empty segment is the upload ID
+			segments := strings.Split(strings.TrimSuffix(rawPath, "/"), "/")
+			uploadID := segments[len(segments)-1]
+
 			if uploadID != "" {
 				fixedLocation := "/api/v1/upload/files/" + uploadID
 				w.Header().Set("Location", fixedLocation)
