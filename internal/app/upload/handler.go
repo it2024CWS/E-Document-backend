@@ -3,6 +3,7 @@ package upload
 import (
 	"archive/zip"
 	"context"
+	"e-document-backend/internal/pkg/storage"
 	"e-document-backend/internal/util"
 	"encoding/base64"
 	"fmt"
@@ -143,6 +144,26 @@ func (h *Handler) initTusHandler() error {
 		StoreComposer:           composer,
 		NotifyCompleteUploads:   true,
 		RespectForwardedHeaders: true,
+		// Reject unsupported file types BEFORE any bytes are accepted.
+		// The FE also validates, but this is the authoritative check.
+		PreUploadCreateCallback: func(hook tusd.HookEvent) (tusd.HTTPResponse, tusd.FileInfoChanges, error) {
+			filename := hook.Upload.MetaData["filename"]
+			if filename == "" {
+				filename = hook.Upload.MetaData["relative_path"]
+			}
+			if err := storage.ValidateDocumentExtension(filename); err != nil {
+				body := fmt.Sprintf(
+					`{"success":false,"message":%q,"error_code":%q}`,
+					err.Error(), string(util.UNSUPPORTED_FILE_TYPE),
+				)
+				return tusd.HTTPResponse{
+					StatusCode: http.StatusUnsupportedMediaType,
+					Body:       body,
+					Header:     tusd.HTTPHeader{"Content-Type": "application/json"},
+				}, tusd.FileInfoChanges{}, err
+			}
+			return tusd.HTTPResponse{}, tusd.FileInfoChanges{}, nil
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create tusd unrouted handler: %w", err)

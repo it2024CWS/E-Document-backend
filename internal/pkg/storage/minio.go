@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,19 +171,43 @@ func (m *MinIOClient) GetFile(ctx context.Context, objectPath string) (*minio.Ob
 	return object, nil
 }
 
-// GetPresignedURL generates a presigned URL for temporary file access
+// GetPresignedURL generates a presigned URL for temporary file access.
+// If publicURL is configured, the internal minio:9000 endpoint in the URL is replaced
+// so the browser can reach it. A leading "/" means path-relative mode (nginx proxy).
 func (m *MinIOClient) GetPresignedURL(ctx context.Context, objectPath string, expiry time.Duration) (string, error) {
 	if objectPath == "" {
 		return "", fmt.Errorf("empty object path")
 	}
 
-	// Generate presigned URL with expiry time
 	presignedURL, err := m.client.PresignedGetObject(ctx, m.bucket, objectPath, expiry, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	return presignedURL.String(), nil
+	rawURL := presignedURL.String()
+
+	if m.publicURL != "" {
+		parsed, parseErr := url.Parse(rawURL)
+		if parseErr == nil {
+			if strings.HasPrefix(m.publicURL, "/") {
+				// Path-relative mode: nginx proxies /storage/ → http://minio:9000/
+				// and sets Host: minio:9000, so the presigned signature stays valid.
+				return strings.TrimRight(m.publicURL, "/") + parsed.RequestURI(), nil
+			}
+			// Full URL mode: swap scheme + host (and optional path prefix).
+			pub, pubErr := url.Parse(m.publicURL)
+			if pubErr == nil {
+				parsed.Scheme = pub.Scheme
+				parsed.Host = pub.Host
+				if pub.Path != "" && pub.Path != "/" {
+					parsed.Path = strings.TrimRight(pub.Path, "/") + parsed.Path
+				}
+				return parsed.String(), nil
+			}
+		}
+	}
+
+	return rawURL, nil
 }
 
 // ValidateImageFile checks if the uploaded file is a valid image
