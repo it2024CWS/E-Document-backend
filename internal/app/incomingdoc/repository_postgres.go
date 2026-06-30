@@ -227,6 +227,20 @@ func (r *postgresRepository) FindByDocID(ctx context.Context, docDetailsID uuid.
 	return documents, nil
 }
 
+func (r *postgresRepository) FindByDocNo(ctx context.Context, docNo string) (*domain.IncomingDoc, error) {
+	query := baseSelectIncoming + ` WHERE d.doc_no = $1 ORDER BY i.updated_at DESC LIMIT 1`
+
+	var doc domain.IncomingDoc
+	err := scanIncomingDoc(r.pool.QueryRow(ctx, query, docNo), &doc)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("incoming document not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to find incoming document by doc_no: %w", err)
+	}
+	return &doc, nil
+}
+
 func (r *postgresRepository) Create(ctx context.Context, doc *domain.IncomingDoc) error {
 	query := `
 		INSERT INTO incoming_docs (

@@ -30,6 +30,7 @@ type Service interface {
 	GetIncomingDocsByReceiver(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDocResponse, error)
 	GetIncomingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.IncomingDocResponse, int, error)
 	GetIncomingDocsByStatus(ctx context.Context, status string) ([]domain.IncomingDocResponse, error)
+	GetIncomingDocByDocNo(ctx context.Context, docNo string) (*domain.IncomingDocResponse, error)
 	ReceiveDocument(ctx context.Context, req domain.ReceiveDocumentRequest) (*domain.IncomingDocResponse, error)
 	ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error)
 	// CreateIncomingDocForStep creates the incoming doc for a single route step
@@ -81,6 +82,15 @@ func (s *service) GetAllIncomingDocsExcludingSender(ctx context.Context, senderI
 	}
 
 	return responses, total, nil
+}
+
+func (s *service) GetIncomingDocByDocNo(ctx context.Context, docNo string) (*domain.IncomingDocResponse, error) {
+	doc, err := s.repo.FindByDocNo(ctx, docNo)
+	if err != nil {
+		return nil, util.NewNotFoundError("IncomingDoc", docNo)
+	}
+	resp := doc.ToResponse()
+	return &resp, nil
 }
 
 func (s *service) GetIncomingDocByID(ctx context.Context, id uuid.UUID) (*domain.IncomingDocResponse, error) {

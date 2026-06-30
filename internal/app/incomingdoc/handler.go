@@ -24,6 +24,7 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFunc) {
 	docs := e.Group("/v1/incoming-docs", middleware...)
 	docs.GET("", h.GetAllIncomingDocs)
+	docs.GET("/doc-no/:docNo", h.GetIncomingDocByDocNo)
 	docs.GET("/:id", h.GetIncomingDocByID)
 	docs.GET("/receiver/:receiverId", h.GetIncomingDocsByReceiver)
 	docs.GET("/department/:deptId", h.GetIncomingDocsByDepartment)
@@ -103,6 +104,33 @@ func (h *Handler) GetAllIncomingDocs(c echo.Context) error {
 		TotalItems:   total,
 		ItemsPerPage: limit,
 	})
+}
+
+// GetIncomingDocByDocNo godoc
+//
+//	@Summary		Get incoming document by doc_no
+//	@Description	Find the latest incoming document matching the given document number (barcode scan)
+//	@Tags			incoming-docs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			docNo	path		string	true	"Document number (doc_no)"
+//	@Success		200		{object}	util.Response{data=domain.IncomingDocResponse}
+//	@Failure		404		{object}	util.Response
+//	@Router			/v1/incoming-docs/doc-no/{docNo} [get]
+func (h *Handler) GetIncomingDocByDocNo(c echo.Context) error {
+	ctx := c.Request().Context()
+	docNo := c.Param("docNo")
+	if docNo == "" {
+		return util.HandleError(c, util.NewInvalidInputError("docNo", "must not be empty"))
+	}
+
+	doc, err := h.service.GetIncomingDocByDocNo(ctx, docNo)
+	if err != nil {
+		return util.HandleError(c, err)
+	}
+
+	return util.OKResponse(c, "Incoming document retrieved successfully", doc)
 }
 
 // GetIncomingDocByID godoc

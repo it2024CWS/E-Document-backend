@@ -51,6 +51,9 @@ func (s *stubRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string
 func (s *stubRepo) FindAllExcludingSender(ctx context.Context, senderID uuid.UUID, limit, offset int) ([]domain.IncomingDoc, int, error) {
 	return nil, 0, nil
 }
+func (s *stubRepo) FindByDocNo(ctx context.Context, docNo string) (*domain.IncomingDoc, error) {
+	return nil, nil
+}
 
 // --- tests ---
 
