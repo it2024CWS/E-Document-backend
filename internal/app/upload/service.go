@@ -7,6 +7,8 @@ import (
 	"e-document-backend/internal/app/user"
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
+	"hash/fnv"
+	"math"
 	"path/filepath"
 	"strings"
 
@@ -90,6 +92,14 @@ func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploa
 			currentPath = folderName
 		} else {
 			currentPath = currentPath + "/" + folderName
+		}
+
+		// Serialize concurrent uploads that share the same folder path so only
+		// one transaction creates the folder while others wait and then reuse it.
+		lockKey := folderLockKey(params.OwnerID.String(), currentPath)
+		if _, lockErr := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, lockKey); lockErr != nil {
+			err = lockErr
+			return nil, err
 		}
 
 		folder, findErr := s.repo.FindFolderByNameAndParent(ctx, tx, folderName, currentParentID, params.OwnerID.String())
@@ -277,6 +287,14 @@ func parseDeptIDs(csv string) []uuid.UUID {
 		}
 	}
 	return out
+}
+
+// folderLockKey returns a stable int64 advisory lock key for a (userID, folderPath) pair.
+// The key is mapped into the positive int64 range so PostgreSQL accepts it.
+func folderLockKey(userID, folderPath string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(userID + ":" + folderPath))
+	return int64(h.Sum64() % math.MaxInt64)
 }
 
 func parsePath(path string) []string {

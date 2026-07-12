@@ -22,6 +22,15 @@ type RouteAdvancer interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status string, approverID *uuid.UUID) error
 }
 
+// Notifier fires best-effort email notifications after status transitions.
+// All calls are async — implementations must not block the caller.
+// Passing nil disables notifications entirely.
+type Notifier interface {
+	IncomingReceived(ctx context.Context, incomingDocID, actorID uuid.UUID)
+	IncomingApproved(ctx context.Context, incomingDocID, actorID uuid.UUID)
+	IncomingRejected(ctx context.Context, incomingDocID, actorID uuid.UUID)
+}
+
 // Service defines the interface for incoming document business logic
 type Service interface {
 	GetAllIncomingDocs(ctx context.Context, page, limit int) ([]domain.IncomingDocResponse, int, error)
@@ -42,15 +51,17 @@ type Service interface {
 }
 
 type service struct {
-	repo   Repository
-	routes RouteAdvancer
+	repo     Repository
+	routes   RouteAdvancer
+	notifier Notifier
 }
 
-// NewService creates a new incoming document service
-func NewService(repo Repository, routes RouteAdvancer) Service {
+// NewService creates a new incoming document service. notifier may be nil.
+func NewService(repo Repository, routes RouteAdvancer, notifier Notifier) Service {
 	return &service{
-		repo:   repo,
-		routes: routes,
+		repo:     repo,
+		routes:   routes,
+		notifier: notifier,
 	}
 }
 
@@ -178,6 +189,10 @@ func (s *service) ReceiveDocument(ctx context.Context, req domain.ReceiveDocumen
 		return nil, util.NewDatabaseError("fetch updated document", err)
 	}
 
+	if s.notifier != nil {
+		go s.notifier.IncomingReceived(context.Background(), doc.ID, receiverID)
+	}
+
 	resp := updated.ToResponse()
 	return &resp, nil
 }
@@ -238,6 +253,15 @@ func (s *service) ApproveDocument(ctx context.Context, id uuid.UUID, req domain.
 			if updateErr := s.routes.UpdateStatus(ctx, step.OutgoingDocID, domain.OutgoingStatusRejected, doc.ApproverID); updateErr != nil {
 				log.Error().Err(updateErr).Str("outgoing_doc_id", step.OutgoingDocID.String()).Msg("failed to propagate rejection to outgoing doc")
 			}
+		}
+	}
+
+	if s.notifier != nil && doc.ApproverID != nil {
+		actorID := *doc.ApproverID
+		if approved {
+			go s.notifier.IncomingApproved(context.Background(), doc.ID, actorID)
+		} else {
+			go s.notifier.IncomingRejected(context.Background(), doc.ID, actorID)
 		}
 	}
 

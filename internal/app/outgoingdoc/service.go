@@ -17,6 +17,14 @@ type StepCreator interface {
 	CreateIncomingDocForStep(ctx context.Context, docDetailsID uuid.UUID, creatorID *uuid.UUID, step *domain.RouteStep, remark string) error
 }
 
+// Notifier fires best-effort email notifications after the owner-approval gate
+// resolves. All calls are async — implementations must not block the caller.
+// Passing nil disables notifications entirely.
+type Notifier interface {
+	OutgoingOwnerApproved(ctx context.Context, outgoingDocID uuid.UUID, actorID *uuid.UUID)
+	OutgoingOwnerRejected(ctx context.Context, outgoingDocID uuid.UUID, actorID *uuid.UUID)
+}
+
 type Service interface {
 	GetAllOutgoingDocs(ctx context.Context, page, limit int, filter DocFilter) ([]domain.OutgoingDocResponse, int, error)
 	GetOutgoingDocByID(ctx context.Context, id uuid.UUID) (*domain.OutgoingDocResponse, error)
@@ -34,10 +42,12 @@ type Service interface {
 type service struct {
 	repo        Repository
 	stepCreator StepCreator
+	notifier    Notifier
 }
 
-func NewService(repo Repository, stepCreator StepCreator) Service {
-	return &service{repo: repo, stepCreator: stepCreator}
+// NewService constructs the outgoing document service. notifier may be nil.
+func NewService(repo Repository, stepCreator StepCreator, notifier Notifier) Service {
+	return &service{repo: repo, stepCreator: stepCreator, notifier: notifier}
 }
 
 // buildStatusCounts computes status counts from a recipients slice.
@@ -275,6 +285,14 @@ func (s *service) ApproveOutgoingDoc(ctx context.Context, id uuid.UUID, req doma
 	if approved {
 		if err := s.startRecipientFlow(ctx, doc, req.Remark); err != nil {
 			log.Error().Err(err).Str("outgoing_doc_id", id.String()).Msg("failed to start recipient flow after approval")
+		}
+	}
+
+	if s.notifier != nil {
+		if approved {
+			go s.notifier.OutgoingOwnerApproved(context.Background(), id, approverID)
+		} else {
+			go s.notifier.OutgoingOwnerRejected(context.Background(), id, approverID)
 		}
 	}
 

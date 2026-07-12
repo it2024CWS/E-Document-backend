@@ -11,6 +11,7 @@ import (
 	"e-document-backend/internal/app/file"
 	"e-document-backend/internal/app/folder"
 	"e-document-backend/internal/app/incomingdoc"
+	"e-document-backend/internal/app/notification"
 	"e-document-backend/internal/app/outgoingdoc"
 	"e-document-backend/internal/app/rejecteddoc"
 	"e-document-backend/internal/app/role"
@@ -20,6 +21,7 @@ import (
 	"e-document-backend/internal/config"
 	"e-document-backend/internal/logger"
 	customMiddleware "e-document-backend/internal/middleware"
+	"e-document-backend/internal/pkg/mailer"
 	"e-document-backend/internal/pkg/seed"
 	"e-document-backend/internal/pkg/storage"
 	"e-document-backend/internal/platform/postgres"
@@ -212,10 +214,15 @@ func main() {
 	outgoingdocRepo := outgoingdoc.NewPostgresRepository(pgClient.Pool)
 	incomingdocRepo := incomingdoc.NewPostgresRepository(pgClient.Pool)
 
-	incomingdocService := incomingdoc.NewService(incomingdocRepo, outgoingdocRepo)
+	// Wire the mailer + notification service. If SMTP_HOST is empty the mailer
+	// falls back to a no-op, so this is safe in dev.
+	mailerImpl := mailer.New(cfg.SMTP)
+	notifier := notification.New(mailerImpl, userRepo, departmentRepo, outgoingdocRepo, incomingdocRepo)
+
+	incomingdocService := incomingdoc.NewService(incomingdocRepo, outgoingdocRepo, notifier)
 	incomingdocHandler := incomingdoc.NewHandler(incomingdocService)
 
-	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocService)
+	outgoingdocService := outgoingdoc.NewService(outgoingdocRepo, incomingdocService, notifier)
 	outgoingdocHandler := outgoingdoc.NewHandler(outgoingdocService)
 
 	// Initialize rejected-document report module (read-only; reports inbound +

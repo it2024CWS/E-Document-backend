@@ -14,6 +14,19 @@ type Config struct {
 	Admin    AdminConfig
 	Logger   LoggerConfig
 	JWT      JWTConfig
+	SMTP     SMTPConfig
+}
+
+// SMTPConfig holds SMTP configuration for outbound email notifications.
+// When Host is empty, the app wires a no-op mailer (dev-friendly).
+type SMTPConfig struct {
+	Host      string
+	Port      string
+	Secure    bool // reserved; port 587 uses STARTTLS automatically via net/smtp
+	Username  string
+	Password  string
+	FromName  string
+	FromEmail string
 }
 
 // ServerConfig holds server configuration
@@ -73,6 +86,15 @@ func Load() *Config {
 			RefreshTokenSecret: getEnv("JWT_REFRESH_SECRET", ""),
 			AccessTokenExpiry:  getEnvAsInt64("JWT_ACCESS_EXPIRY", 3600),    // 1 hour
 			RefreshTokenExpiry: getEnvAsInt64("JWT_REFRESH_EXPIRY", 604800), // 7 days
+		},
+		SMTP: SMTPConfig{
+			Host:      getEnv("SMTP_HOST", ""),
+			Port:      getEnv("SMTP_PORT", "587"),
+			Secure:    getEnv("SMTP_SECURE", "false") == "true",
+			Username:  getEnv("SMTP_USER", ""),
+			Password:  getEnv("SMTP_PASS", ""),
+			FromName:  getEnv("SMTP_FROM_NAME", "E-Document"),
+			FromEmail: getEnv("SMTP_FROM_EMAIL", ""),
 		},
 	}
 }
