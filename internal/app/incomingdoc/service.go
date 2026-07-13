@@ -39,6 +39,8 @@ type Service interface {
 	GetIncomingDocsByReceiver(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDocResponse, error)
 	GetIncomingDocsByDepartment(ctx context.Context, deptID uuid.UUID, page, limit int) ([]domain.IncomingDocResponse, int, error)
 	GetIncomingDocsByStatus(ctx context.Context, status string) ([]domain.IncomingDocResponse, error)
+	GetIncomingDocsByStatusForDepartment(ctx context.Context, status string, deptID uuid.UUID) ([]domain.IncomingDocResponse, error)
+	GetIncomingDocsByStatusExcludingSender(ctx context.Context, status string, senderID uuid.UUID) ([]domain.IncomingDocResponse, error)
 	GetIncomingDocByDocNo(ctx context.Context, docNo string) (*domain.IncomingDocResponse, error)
 	ReceiveDocument(ctx context.Context, req domain.ReceiveDocumentRequest) (*domain.IncomingDocResponse, error)
 	ApproveDocument(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.IncomingDocResponse, error)
@@ -147,6 +149,34 @@ func (s *service) GetIncomingDocsByStatus(ctx context.Context, status string) ([
 	docs, err := s.repo.FindByStatus(ctx, status)
 	if err != nil {
 		return nil, util.NewDatabaseError("get incoming documents by status", err)
+	}
+
+	responses := make([]domain.IncomingDocResponse, len(docs))
+	for i, doc := range docs {
+		responses[i] = doc.ToResponse()
+	}
+
+	return responses, nil
+}
+
+func (s *service) GetIncomingDocsByStatusForDepartment(ctx context.Context, status string, deptID uuid.UUID) ([]domain.IncomingDocResponse, error) {
+	docs, err := s.repo.FindByStatusAndDepartment(ctx, status, deptID)
+	if err != nil {
+		return nil, util.NewDatabaseError("get incoming documents by status and department", err)
+	}
+
+	responses := make([]domain.IncomingDocResponse, len(docs))
+	for i, doc := range docs {
+		responses[i] = doc.ToResponse()
+	}
+
+	return responses, nil
+}
+
+func (s *service) GetIncomingDocsByStatusExcludingSender(ctx context.Context, status string, senderID uuid.UUID) ([]domain.IncomingDocResponse, error) {
+	docs, err := s.repo.FindByStatusExcludingSender(ctx, status, senderID)
+	if err != nil {
+		return nil, util.NewDatabaseError("get incoming documents by status excluding sender", err)
 	}
 
 	responses := make([]domain.IncomingDocResponse, len(docs))

@@ -250,6 +250,29 @@ func (h *Handler) GetIncomingDocsByStatus(c echo.Context) error {
 	ctx := c.Request().Context()
 	status := c.Param("status")
 
+	// Mirror the dept/sender filter that GetAllIncomingDocs applies so status
+	// counts stay consistent with the list view.
+	deptIDStr, ok := c.Get("dept_id").(string)
+	if ok && deptIDStr != "" {
+		deptID, err := uuid.Parse(deptIDStr)
+		if err == nil {
+			docs, err := h.service.GetIncomingDocsByStatusForDepartment(ctx, status, deptID)
+			if err != nil {
+				return util.HandleError(c, err)
+			}
+			return util.OKResponse(c, "Incoming documents by status retrieved successfully", docs)
+		}
+	}
+
+	userIDStr, _ := c.Get("user_id").(string)
+	if userID, err := uuid.Parse(userIDStr); err == nil {
+		docs, err := h.service.GetIncomingDocsByStatusExcludingSender(ctx, status, userID)
+		if err != nil {
+			return util.HandleError(c, err)
+		}
+		return util.OKResponse(c, "Incoming documents by status retrieved successfully", docs)
+	}
+
 	docs, err := h.service.GetIncomingDocsByStatus(ctx, status)
 	if err != nil {
 		return util.HandleError(c, err)

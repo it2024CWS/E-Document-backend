@@ -37,6 +37,25 @@ type Service interface {
 	// ApproveOutgoingDoc is the owner department head's gate: on approval the first
 	// recipient step's incoming doc is created; on rejection the flow stops.
 	ApproveOutgoingDoc(ctx context.Context, id uuid.UUID, req domain.ApproveDocumentRequest) (*domain.OutgoingDocResponse, error)
+	// UpdateOutgoingDoc edits doc metadata and/or recipient departments. Only
+	// allowed while the doc is still at the owner-approval gate (status = pending).
+	UpdateOutgoingDoc(ctx context.Context, id uuid.UUID, req UpdateOutgoingDocRequest, updaterID *uuid.UUID) (*domain.OutgoingDocResponse, error)
+	// DeleteOutgoingDoc soft-deletes the doc (and its linked doc_details). Only
+	// allowed while status = pending.
+	DeleteOutgoingDoc(ctx context.Context, id uuid.UUID, updaterID *uuid.UUID) error
+	// ReplaceFile swaps the stored file for an outgoing doc addressed by its
+	// doc_details_id. Called from the upload service's replace path after the
+	// TUS upload has moved the file to permanent storage. Guarded by status=pending.
+	ReplaceFile(ctx context.Context, docDetailsID uuid.UUID, docPath, fileType string, updaterID *uuid.UUID) error
+}
+
+// UpdateOutgoingDocRequest carries the editable fields. A nil RecipientDeptIDs
+// means "don't touch the route"; an empty non-nil slice replaces it with none.
+// Empty string DocNo / DocName are skipped.
+type UpdateOutgoingDocRequest struct {
+	DocNo            string       `json:"doc_no"`
+	DocName          string       `json:"description"` // FE calls this "description"
+	RecipientDeptIDs *[]uuid.UUID `json:"receiver_ids"`
 }
 
 type service struct {
@@ -242,6 +261,77 @@ func (s *service) CreateOutgoingDocWithRoute(ctx context.Context, docDetailsID u
 	}
 
 	return doc.ID, nil
+}
+
+// UpdateOutgoingDoc edits doc metadata and/or recipient departments. Guarded by
+// status = pending — after the owner-head has approved/rejected, the doc is
+// locked. Route replacement is safe here because no incoming docs exist yet
+// (they're only created after owner approval).
+func (s *service) UpdateOutgoingDoc(ctx context.Context, id uuid.UUID, req UpdateOutgoingDocRequest, updaterID *uuid.UUID) (*domain.OutgoingDocResponse, error) {
+	doc, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, util.NewNotFoundError("OutgoingDoc", id.String())
+	}
+	if doc.Status != domain.OutgoingStatusPending {
+		return nil, util.NewValidationError(fmt.Sprintf("cannot edit an outgoing document with status '%s' (must be 'pending')", doc.Status))
+	}
+
+	if req.DocNo != "" || req.DocName != "" {
+		if err := s.repo.UpdateDocMeta(ctx, id, req.DocNo, req.DocName, updaterID); err != nil {
+			return nil, util.NewDatabaseError("update outgoing document metadata", err)
+		}
+	}
+
+	if req.RecipientDeptIDs != nil {
+		var ownerDept uuid.UUID
+		if doc.OwnerDeptID != nil {
+			ownerDept = *doc.OwnerDeptID
+		}
+		route := BuildRoute(ownerDept, *req.RecipientDeptIDs, nil)
+		if err := s.repo.ReplaceRoutes(ctx, id, route); err != nil {
+			return nil, util.NewDatabaseError("replace outgoing document routes", err)
+		}
+	}
+
+	return s.GetOutgoingDocByID(ctx, id)
+}
+
+// ReplaceFile swaps the stored file for an outgoing doc addressed by its
+// doc_details_id. Called from the upload service after the TUS upload has moved
+// the file to permanent storage. Guarded by status=pending so a doc that's
+// already been dispatched / rejected can't have its file swapped out.
+func (s *service) ReplaceFile(ctx context.Context, docDetailsID uuid.UUID, docPath, fileType string, updaterID *uuid.UUID) error {
+	doc, err := s.repo.FindByDocDetailsID(ctx, docDetailsID)
+	if err != nil {
+		return util.NewDatabaseError("find outgoing doc by doc_details_id", err)
+	}
+	if doc == nil {
+		return util.NewNotFoundError("OutgoingDoc for doc_details", docDetailsID.String())
+	}
+	if doc.Status != domain.OutgoingStatusPending {
+		return util.NewValidationError(fmt.Sprintf("cannot replace file on an outgoing document with status '%s' (must be 'pending')", doc.Status))
+	}
+	if err := s.repo.ReplaceFile(ctx, doc.ID, docPath, fileType, updaterID); err != nil {
+		return util.NewDatabaseError("replace outgoing document file", err)
+	}
+	return nil
+}
+
+// DeleteOutgoingDoc soft-deletes the outgoing doc + its doc_details. Guarded by
+// status = pending — once the owner head has acted, the doc is part of the
+// audit trail and can no longer be removed.
+func (s *service) DeleteOutgoingDoc(ctx context.Context, id uuid.UUID, updaterID *uuid.UUID) error {
+	doc, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return util.NewNotFoundError("OutgoingDoc", id.String())
+	}
+	if doc.Status != domain.OutgoingStatusPending {
+		return util.NewValidationError(fmt.Sprintf("cannot delete an outgoing document with status '%s' (must be 'pending')", doc.Status))
+	}
+	if err := s.repo.SoftDelete(ctx, id, updaterID); err != nil {
+		return util.NewDatabaseError("soft-delete outgoing document", err)
+	}
+	return nil
 }
 
 // ApproveOutgoingDoc is the owner department head's approval gate. It must be

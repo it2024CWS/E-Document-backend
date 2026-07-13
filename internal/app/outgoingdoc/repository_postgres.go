@@ -56,7 +56,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
-		WHERE 1=1%s
+		WHERE o.deleted_at IS NULL%s
 	`, filterWhere)
 	err := r.pool.QueryRow(ctx, countQuery, filterArgs...).Scan(&total)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *postgresRepository) FindAll(ctx context.Context, limit, offset int, fil
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
-		WHERE 1=1%s
+		WHERE o.deleted_at IS NULL%s
 		ORDER BY o.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, filterWhere, limitIdx, offsetIdx)
@@ -129,7 +129,7 @@ func (r *postgresRepository) FindByID(ctx context.Context, id uuid.UUID) (*domai
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
-		WHERE o.id = $1
+		WHERE o.id = $1 AND o.deleted_at IS NULL
 	`
 
 	var doc domain.OutgoingDoc
@@ -166,7 +166,7 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 		SELECT COUNT(DISTINCT o.id) FROM outgoing_docs o
 		LEFT JOIN doc_details d ON o.doc_details_id = d.id
 		JOIN users u ON o.created_by = u.id
-		WHERE u.department_id = $1%s
+		WHERE u.department_id = $1 AND o.deleted_at IS NULL%s
 	`, filterWhere)
 	err := r.pool.QueryRow(ctx, countQuery, baseArgs...).Scan(&total)
 	if err != nil {
@@ -189,7 +189,7 @@ func (r *postgresRepository) FindByDepartmentID(ctx context.Context, deptID uuid
 		LEFT JOIN users u ON o.created_by = u.id
 		LEFT JOIN users u2 ON o.updated_by = u2.id
 		LEFT JOIN departments dept ON o.owner_dept_id = dept.id
-		WHERE u.department_id = $1%s
+		WHERE u.department_id = $1 AND o.deleted_at IS NULL%s
 		ORDER BY o.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, filterWhere, limitIdx, offsetIdx)
@@ -298,6 +298,161 @@ func (r *postgresRepository) Create(ctx context.Context, doc *domain.OutgoingDoc
 		return fmt.Errorf("failed to create outgoing document: %w", err)
 	}
 
+	return nil
+}
+
+// UpdateDocMeta patches doc_no / doc_name on the linked doc_details, and bumps
+// outgoing_docs.updated_by. Skips fields whose value is an empty string.
+// Runs inside a transaction so a partial write does not leave the two tables out of sync.
+func (r *postgresRepository) UpdateDocMeta(ctx context.Context, id uuid.UUID, docNo, docName string, updaterID *uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if docNo != "" || docName != "" {
+		// Update only the columns that are non-empty. COALESCE(NULLIF(...))
+		// keeps the original when the argument is empty.
+		_, err = tx.Exec(ctx, `
+			UPDATE doc_details
+			SET
+				doc_no   = COALESCE(NULLIF($1, ''), doc_no),
+				doc_name = COALESCE(NULLIF($2, ''), doc_name),
+				updated_at = NOW()
+			WHERE id = (SELECT doc_details_id FROM outgoing_docs WHERE id = $3)
+		`, docNo, docName, id)
+		if err != nil {
+			return fmt.Errorf("update doc_details: %w", err)
+		}
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE outgoing_docs SET updated_by = COALESCE($1, updated_by) WHERE id = $2`,
+		updaterID, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update outgoing_docs.updated_by: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// SoftDelete marks outgoing_docs and its linked doc_details as deleted.
+// The two writes run in a transaction so the pair stays consistent.
+func (r *postgresRepository) SoftDelete(ctx context.Context, id uuid.UUID, updaterID *uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err = tx.Exec(ctx,
+		`UPDATE outgoing_docs SET deleted_at = NOW(), updated_by = COALESCE($1, updated_by) WHERE id = $2`,
+		updaterID, id,
+	); err != nil {
+		return fmt.Errorf("soft-delete outgoing_docs: %w", err)
+	}
+
+	if _, err = tx.Exec(ctx, `
+		UPDATE doc_details SET deleted_at = NOW()
+		WHERE id = (SELECT doc_details_id FROM outgoing_docs WHERE id = $1)
+	`, id); err != nil {
+		return fmt.Errorf("soft-delete doc_details: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// ReplaceRoutes clears the existing route steps and rewrites them from deptIDs
+// in order. Meant to be called only while the doc is still pending — otherwise
+// existing incoming_docs would be silently orphaned.
+func (r *postgresRepository) ReplaceRoutes(ctx context.Context, outgoingDocID uuid.UUID, deptIDs []uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err = tx.Exec(ctx,
+		`DELETE FROM outgoing_doc_routes WHERE outgoing_doc_id = $1`, outgoingDocID,
+	); err != nil {
+		return fmt.Errorf("delete existing routes: %w", err)
+	}
+
+	for i, deptID := range deptIDs {
+		if _, err = tx.Exec(ctx, `
+			INSERT INTO outgoing_doc_routes (outgoing_doc_id, dept_id, sequence_order)
+			VALUES ($1, $2, $3)
+		`, outgoingDocID, deptID, i+1); err != nil {
+			return fmt.Errorf("insert route %d: %w", i+1, err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// FindByDocDetailsID returns the outgoing_doc row backed by a given doc_details.
+// Only considers non-deleted rows.
+func (r *postgresRepository) FindByDocDetailsID(ctx context.Context, docDetailsID uuid.UUID) (*domain.OutgoingDoc, error) {
+	var doc domain.OutgoingDoc
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, doc_details_id, folder_id, owner_dept_id, created_by, updated_by, created_at, status
+		FROM outgoing_docs
+		WHERE doc_details_id = $1 AND deleted_at IS NULL
+	`, docDetailsID).Scan(
+		&doc.ID, &doc.DocDetailsID, &doc.FolderID, &doc.OwnerDeptID, &doc.CreatedBy, &doc.UpdatedBy, &doc.CreatedAt, &doc.Status,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find by doc_details_id: %w", err)
+	}
+	return &doc, nil
+}
+
+// ReplaceFile swaps the version row's stored file (doc_path + file_type) for the
+// outgoing doc's doc_details. Runs in a tx so a partial write can't leave the
+// version pointing at a nonexistent file with an updated updated_by.
+func (r *postgresRepository) ReplaceFile(ctx context.Context, outgoingDocID uuid.UUID, docPath, fileType string, updaterID *uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE versions
+		SET doc_path = $1, file_type = $2
+		WHERE doc_details_id = (SELECT doc_details_id FROM outgoing_docs WHERE id = $3)
+	`, docPath, fileType, outgoingDocID)
+	if err != nil {
+		return fmt.Errorf("update versions: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("no version row found for outgoing doc %s", outgoingDocID)
+	}
+
+	if _, err = tx.Exec(ctx,
+		`UPDATE outgoing_docs SET updated_by = COALESCE($1, updated_by) WHERE id = $2`,
+		updaterID, outgoingDocID,
+	); err != nil {
+		return fmt.Errorf("bump updated_by: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
 	return nil
 }
 

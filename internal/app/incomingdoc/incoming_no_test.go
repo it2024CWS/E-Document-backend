@@ -41,6 +41,12 @@ func (s *stubRepo) FindByDepartmentID(ctx context.Context, id uuid.UUID, limit, 
 func (s *stubRepo) FindByStatus(ctx context.Context, status string) ([]domain.IncomingDoc, error) {
 	return nil, nil
 }
+func (s *stubRepo) FindByStatusAndDepartment(ctx context.Context, status string, deptID uuid.UUID) ([]domain.IncomingDoc, error) {
+	return nil, nil
+}
+func (s *stubRepo) FindByStatusExcludingSender(ctx context.Context, status string, senderID uuid.UUID) ([]domain.IncomingDoc, error) {
+	return nil, nil
+}
 func (s *stubRepo) FindByDocID(ctx context.Context, id uuid.UUID) ([]domain.IncomingDoc, error) {
 	return nil, nil
 }

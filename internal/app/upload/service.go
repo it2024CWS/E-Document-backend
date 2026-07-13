@@ -58,6 +58,23 @@ func NewService(repo Repository, incomingService incomingdoc.Service, outgoingSe
 }
 
 func (s *service) ProcessUploadComplete(ctx context.Context, params ProcessUploadParams) (*ProcessUploadResult, error) {
+	// Fast path: replacing the file behind an existing outgoing doc. The FE sends
+	// `replace_doc_details_id` when the owner edits a pending outgoing doc and picks
+	// a new file. We skip folder/doc_details creation entirely and just update the
+	// existing versions row via the outgoing service (which guards status=pending).
+	if raw := strings.TrimSpace(params.ExtraMetadata["replace_doc_details_id"]); raw != "" {
+		docDetailsID, perr := uuid.Parse(raw)
+		if perr != nil {
+			return nil, util.ErrorResponse("Invalid replace_doc_details_id", util.INVALID_FILE_PATH, 400, perr.Error())
+		}
+		fileName := filepath.Base(params.RelativePath)
+		fileType := strings.TrimPrefix(strings.ToLower(filepath.Ext(fileName)), ".")
+		if err := s.outgoingService.ReplaceFile(ctx, docDetailsID, params.FilePath, fileType, &params.OwnerID); err != nil {
+			return nil, err
+		}
+		return &ProcessUploadResult{Folders: []*domain.Folder{}}, nil
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		return nil, util.ErrorResponse("Failed to begin transaction", util.TRANSACTION_BEGIN_FAILED, 500, err.Error())

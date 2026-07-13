@@ -14,6 +14,8 @@ type Repository interface {
 	FindByReceiverID(ctx context.Context, receiverID uuid.UUID) ([]domain.IncomingDoc, error)
 	FindByDepartmentID(ctx context.Context, deptID uuid.UUID, limit, offset int) ([]domain.IncomingDoc, int, error)
 	FindByStatus(ctx context.Context, status string) ([]domain.IncomingDoc, error)
+	FindByStatusAndDepartment(ctx context.Context, status string, deptID uuid.UUID) ([]domain.IncomingDoc, error)
+	FindByStatusExcludingSender(ctx context.Context, status string, senderID uuid.UUID) ([]domain.IncomingDoc, error)
 	FindByDocID(ctx context.Context, docID uuid.UUID) ([]domain.IncomingDoc, error)
 	FindByOutgoingDocID(ctx context.Context, outgoingDocID uuid.UUID) ([]domain.IncomingDoc, error)
 	FindByDocNo(ctx context.Context, docNo string) (*domain.IncomingDoc, error)

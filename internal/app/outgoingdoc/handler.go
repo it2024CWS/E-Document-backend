@@ -4,6 +4,7 @@ import (
 	"e-document-backend/internal/domain"
 	"e-document-backend/internal/util"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,8 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 	docs.GET("/department/:deptId", h.GetOutgoingDocsByDepartment)
 	docs.POST("", h.CreateOutgoingDoc)
 	docs.POST("/:id/approve", h.ApproveOutgoingDoc)
+	docs.PUT("/:id", h.UpdateOutgoingDoc)
+	docs.DELETE("/:id", h.DeleteOutgoingDoc)
 }
 
 func buildFilter(c echo.Context) DocFilter {
@@ -268,4 +271,105 @@ func (h *Handler) ApproveOutgoingDoc(c echo.Context) error {
 	}
 
 	return util.OKResponse(c, "Outgoing document evaluated successfully", doc)
+}
+
+// updateOutgoingDocPayload is the JSON body accepted by PUT /v1/outgoing-docs/:id.
+// A missing receiver_ids field leaves the recipient route untouched; an empty
+// list [] clears it. Empty strings for doc_no / description are skipped.
+type updateOutgoingDocPayload struct {
+	DocNo       string    `json:"doc_no"`
+	Description string    `json:"description"`
+	ReceiverIDs *[]string `json:"receiver_ids,omitempty"`
+}
+
+// UpdateOutgoingDoc godoc
+//
+//	@Summary		Update outgoing document
+//	@Description	Edit metadata (doc_no, description) and/or recipient departments while the doc is still pending. Blocked once the owner department head has approved or rejected.
+//	@Tags			outgoing-docs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		string					true	"Outgoing Document ID (UUID)"
+//	@Param			request	body		updateOutgoingDocPayload	true	"Editable fields"
+//	@Success		200		{object}	util.Response{data=domain.OutgoingDocResponse}
+//	@Failure		400		{object}	util.Response
+//	@Failure		401		{object}	util.Response
+//	@Failure		404		{object}	util.Response
+//	@Router			/v1/outgoing-docs/{id} [put]
+func (h *Handler) UpdateOutgoingDoc(c echo.Context) error {
+	ctx := c.Request().Context()
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
+	}
+
+	var payload updateOutgoingDocPayload
+	if err := c.Bind(&payload); err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("request body", "invalid JSON format"))
+	}
+
+	updaterIDStr := util.GetUserIDFromContext(c)
+	updaterID, err := uuid.Parse(updaterIDStr)
+	if err != nil {
+		return util.HandleError(c, util.NewUnauthorizedError("invalid user ID in token"))
+	}
+
+	req := UpdateOutgoingDocRequest{
+		DocNo:   payload.DocNo,
+		DocName: payload.Description,
+	}
+	if payload.ReceiverIDs != nil {
+		parsed := make([]uuid.UUID, 0, len(*payload.ReceiverIDs))
+		for _, s := range *payload.ReceiverIDs {
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
+			u, perr := uuid.Parse(s)
+			if perr != nil {
+				return util.HandleError(c, util.NewInvalidInputError("receiver_ids", "must contain valid UUIDs"))
+			}
+			parsed = append(parsed, u)
+		}
+		req.RecipientDeptIDs = &parsed
+	}
+
+	doc, err := h.service.UpdateOutgoingDoc(ctx, id, req, &updaterID)
+	if err != nil {
+		return util.HandleError(c, err)
+	}
+	return util.OKResponse(c, "Outgoing document updated successfully", doc)
+}
+
+// DeleteOutgoingDoc godoc
+//
+//	@Summary		Delete outgoing document (soft delete)
+//	@Description	Soft-deletes the outgoing doc (sets deleted_at). Only allowed while the doc is still pending; the owner-approval gate acting on the doc locks it in the audit trail.
+//	@Tags			outgoing-docs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string	true	"Outgoing Document ID (UUID)"
+//	@Success		200	{object}	util.Response
+//	@Failure		400	{object}	util.Response
+//	@Failure		401	{object}	util.Response
+//	@Failure		404	{object}	util.Response
+//	@Router			/v1/outgoing-docs/{id} [delete]
+func (h *Handler) DeleteOutgoingDoc(c echo.Context) error {
+	ctx := c.Request().Context()
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return util.HandleError(c, util.NewInvalidInputError("id", "must be a valid UUID"))
+	}
+
+	updaterIDStr := util.GetUserIDFromContext(c)
+	updaterID, err := uuid.Parse(updaterIDStr)
+	if err != nil {
+		return util.HandleError(c, util.NewUnauthorizedError("invalid user ID in token"))
+	}
+
+	if err := h.service.DeleteOutgoingDoc(ctx, id, &updaterID); err != nil {
+		return util.HandleError(c, err)
+	}
+	return util.OKResponse(c, "Outgoing document deleted successfully", nil)
 }

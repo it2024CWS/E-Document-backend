@@ -302,12 +302,19 @@ func (h *Handler) processCompletedUpload(event tusd.HookEvent) {
 		return
 	}
 
-	log.Info().
+	logEvent := log.Info().
 		Str("upload_id", upload.ID).
-		Str("document_id", result.Document.ID.String()).
-		Str("version_id", result.Version.ID.String()).
-		Int("folders_created", len(result.Folders)).
-		Msg("Upload processed successfully")
+		Int("folders_created", len(result.Folders))
+	// The outgoing-doc file-replace fast path returns a result with no Document
+	// or Version — nothing new was created, only an existing versions row was
+	// updated. Only log those ids when they exist.
+	if result.Document != nil {
+		logEvent = logEvent.Str("document_id", result.Document.ID.String())
+	}
+	if result.Version != nil {
+		logEvent = logEvent.Str("version_id", result.Version.ID.String())
+	}
+	logEvent.Msg("Upload processed successfully")
 }
 
 // locationFixerWriter wraps http.ResponseWriter to fix Location header

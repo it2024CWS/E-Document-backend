@@ -205,6 +205,50 @@ func (r *postgresRepository) FindByStatus(ctx context.Context, status string) ([
 	return documents, nil
 }
 
+func (r *postgresRepository) FindByStatusAndDepartment(ctx context.Context, status string, deptID uuid.UUID) ([]domain.IncomingDoc, error) {
+	query := baseSelectIncoming + `
+		WHERE i.status = $1 AND i.dept_id = $2
+		ORDER BY i.updated_at DESC`
+
+	rows, err := r.pool.Query(ctx, query, status, deptID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find incoming documents by status and department: %w", err)
+	}
+	defer rows.Close()
+
+	var documents []domain.IncomingDoc
+	for rows.Next() {
+		var doc domain.IncomingDoc
+		if err := scanIncomingDoc(rows, &doc); err != nil {
+			return nil, fmt.Errorf("failed to scan incoming document: %w", err)
+		}
+		documents = append(documents, doc)
+	}
+	return documents, nil
+}
+
+func (r *postgresRepository) FindByStatusExcludingSender(ctx context.Context, status string, senderID uuid.UUID) ([]domain.IncomingDoc, error) {
+	query := baseSelectIncoming + `
+		WHERE i.status = $1 AND i.created_by != $2
+		ORDER BY i.updated_at DESC`
+
+	rows, err := r.pool.Query(ctx, query, status, senderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find incoming documents by status excluding sender: %w", err)
+	}
+	defer rows.Close()
+
+	var documents []domain.IncomingDoc
+	for rows.Next() {
+		var doc domain.IncomingDoc
+		if err := scanIncomingDoc(rows, &doc); err != nil {
+			return nil, fmt.Errorf("failed to scan incoming document: %w", err)
+		}
+		documents = append(documents, doc)
+	}
+	return documents, nil
+}
+
 func (r *postgresRepository) FindByDocID(ctx context.Context, docDetailsID uuid.UUID) ([]domain.IncomingDoc, error) {
 	query := baseSelectIncoming + `
 		WHERE i.doc_details_id = $1
