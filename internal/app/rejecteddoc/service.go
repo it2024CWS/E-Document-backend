@@ -11,7 +11,7 @@ import (
 
 // Service defines the business logic for the rejected-document report.
 type Service interface {
-	GetRejectedDocs(ctx context.Context, deptID *uuid.UUID, start, end *time.Time, page, limit int) ([]domain.RejectedDocResponse, int, error)
+	GetRejectedDocs(ctx context.Context, deptID *uuid.UUID, source string, start, end *time.Time, page, limit int) ([]domain.RejectedDocResponse, int, error)
 }
 
 type service struct {
@@ -23,9 +23,9 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetRejectedDocs(ctx context.Context, deptID *uuid.UUID, start, end *time.Time, page, limit int) ([]domain.RejectedDocResponse, int, error) {
+func (s *service) GetRejectedDocs(ctx context.Context, deptID *uuid.UUID, source string, start, end *time.Time, page, limit int) ([]domain.RejectedDocResponse, int, error) {
 	offset := (page - 1) * limit
-	docs, total, err := s.repo.FindRejected(ctx, deptID, start, end, limit, offset)
+	docs, total, err := s.repo.FindRejected(ctx, deptID, source, start, end, limit, offset)
 	if err != nil {
 		return nil, 0, util.NewDatabaseError("get rejected documents", err)
 	}

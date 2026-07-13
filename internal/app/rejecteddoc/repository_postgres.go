@@ -19,7 +19,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) Repository {
 	return &postgresRepository{pool: pool}
 }
 
-func (r *postgresRepository) FindRejected(ctx context.Context, deptID *uuid.UUID, start, end *time.Time, limit, offset int) ([]domain.RejectedDocResponse, int, error) {
+func (r *postgresRepository) FindRejected(ctx context.Context, deptID *uuid.UUID, source string, start, end *time.Time, limit, offset int) ([]domain.RejectedDocResponse, int, error) {
 	var args []any
 	argn := 0
 	next := func(v any) string {
@@ -28,29 +28,35 @@ func (r *postgresRepository) FindRejected(ctx context.Context, deptID *uuid.UUID
 		return fmt.Sprintf("$%d", argn)
 	}
 
+	includeInbound := source == "" || source == "inbound"
+	includeOutbound := source == "" || source == "outbound"
+
 	// Inbound leg: incoming docs rejected by a receiving department head.
-	inboundWhere := "WHERE i.status = 'rejected'"
-	if deptID != nil {
-		inboundWhere += " AND i.dept_id = " + next(*deptID)
+	var inbound string
+	if includeInbound {
+		inboundWhere := "WHERE i.status = 'rejected'"
+		if deptID != nil {
+			inboundWhere += " AND i.dept_id = " + next(*deptID)
+		}
+		if start != nil {
+			inboundWhere += " AND i.approver_date >= " + next(*start)
+		}
+		if end != nil {
+			inboundWhere += " AND i.approver_date < " + next(*end)
+		}
+		inbound = fmt.Sprintf(`
+			SELECT 'inbound' AS source, i.id, d.doc_no, d.doc_name, v.doc_path, v.file_type,
+				i.dept_id, dept.dept_name,
+				i.approver_id AS rejected_by_id,
+				u.firstname || ' ' || u.lastname AS rejected_by,
+				i.approver_date AS rejected_at, i.remark
+			FROM incoming_docs i
+			LEFT JOIN doc_details d ON i.doc_details_id = d.id
+			LEFT JOIN versions v ON i.doc_details_id = v.doc_details_id AND i.folder_id IS NOT DISTINCT FROM v.folder_id
+			LEFT JOIN departments dept ON i.dept_id = dept.id
+			LEFT JOIN users u ON i.approver_id = u.id
+			%s`, inboundWhere)
 	}
-	if start != nil {
-		inboundWhere += " AND i.approver_date >= " + next(*start)
-	}
-	if end != nil {
-		inboundWhere += " AND i.approver_date < " + next(*end)
-	}
-	inbound := fmt.Sprintf(`
-		SELECT 'inbound' AS source, i.id, d.doc_no, d.doc_name, v.doc_path, v.file_type,
-			i.dept_id, dept.dept_name,
-			i.approver_id AS rejected_by_id,
-			u.firstname || ' ' || u.lastname AS rejected_by,
-			i.approver_date AS rejected_at, i.remark
-		FROM incoming_docs i
-		LEFT JOIN doc_details d ON i.doc_details_id = d.id
-		LEFT JOIN versions v ON i.doc_details_id = v.doc_details_id AND i.folder_id IS NOT DISTINCT FROM v.folder_id
-		LEFT JOIN departments dept ON i.dept_id = dept.id
-		LEFT JOIN users u ON i.approver_id = u.id
-		%s`, inboundWhere)
 
 	// Outbound leg: outgoing docs our department created that were rejected —
 	// either by the owner department head (o.status set directly) or by a
@@ -58,35 +64,48 @@ func (r *postgresRepository) FindRejected(ctx context.Context, deptID *uuid.UUID
 	// We LEFT JOIN incoming_docs to surface the recipient's rejection details
 	// (dept, approver, date, remark) when available; otherwise fall back to
 	// the owner-head rejection data stored on outgoing_docs itself.
-	outboundWhere := "WHERE o.status = 'rejected'"
-	if deptID != nil {
-		outboundWhere += " AND o.owner_dept_id = " + next(*deptID)
+	var outbound string
+	if includeOutbound {
+		outboundWhere := "WHERE o.status = 'rejected'"
+		if deptID != nil {
+			outboundWhere += " AND o.owner_dept_id = " + next(*deptID)
+		}
+		if start != nil {
+			outboundWhere += " AND COALESCE(ri.approver_date, o.created_at) >= " + next(*start)
+		}
+		if end != nil {
+			outboundWhere += " AND COALESCE(ri.approver_date, o.created_at) < " + next(*end)
+		}
+		outbound = fmt.Sprintf(`
+			SELECT 'outbound' AS source, o.id, d.doc_no, d.doc_name, v.doc_path, v.file_type,
+				COALESCE(ri.dept_id, o.owner_dept_id) AS dept_id,
+				COALESCE(rd.dept_name, od.dept_name)  AS dept_name,
+				COALESCE(ri.approver_id, o.updated_by) AS rejected_by_id,
+				COALESCE(rbu.firstname || ' ' || rbu.lastname, obu.firstname || ' ' || obu.lastname) AS rejected_by,
+				COALESCE(ri.approver_date, o.created_at) AS rejected_at,
+				COALESCE(ri.remark, '') AS remark
+			FROM outgoing_docs o
+			LEFT JOIN doc_details d ON o.doc_details_id = d.id
+			LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
+			LEFT JOIN departments od ON o.owner_dept_id = od.id
+			LEFT JOIN incoming_docs ri ON ri.outgoing_doc_id = o.id AND ri.status = 'rejected'
+			LEFT JOIN departments rd ON ri.dept_id = rd.id
+			LEFT JOIN users rbu ON ri.approver_id = rbu.id
+			LEFT JOIN users obu ON o.updated_by = obu.id
+			%s`, outboundWhere)
 	}
-	if start != nil {
-		outboundWhere += " AND COALESCE(ri.approver_date, o.created_at) >= " + next(*start)
-	}
-	if end != nil {
-		outboundWhere += " AND COALESCE(ri.approver_date, o.created_at) < " + next(*end)
-	}
-	outbound := fmt.Sprintf(`
-		SELECT 'outbound' AS source, o.id, d.doc_no, d.doc_name, v.doc_path, v.file_type,
-			COALESCE(ri.dept_id, o.owner_dept_id) AS dept_id,
-			COALESCE(rd.dept_name, od.dept_name)  AS dept_name,
-			COALESCE(ri.approver_id, o.updated_by) AS rejected_by_id,
-			COALESCE(rbu.firstname || ' ' || rbu.lastname, obu.firstname || ' ' || obu.lastname) AS rejected_by,
-			COALESCE(ri.approver_date, o.created_at) AS rejected_at,
-			COALESCE(ri.remark, '') AS remark
-		FROM outgoing_docs o
-		LEFT JOIN doc_details d ON o.doc_details_id = d.id
-		LEFT JOIN versions v ON o.doc_details_id = v.doc_details_id AND o.folder_id IS NOT DISTINCT FROM v.folder_id
-		LEFT JOIN departments od ON o.owner_dept_id = od.id
-		LEFT JOIN incoming_docs ri ON ri.outgoing_doc_id = o.id AND ri.status = 'rejected'
-		LEFT JOIN departments rd ON ri.dept_id = rd.id
-		LEFT JOIN users rbu ON ri.approver_id = rbu.id
-		LEFT JOIN users obu ON o.updated_by = obu.id
-		%s`, outboundWhere)
 
-	union := "(" + inbound + ") UNION ALL (" + outbound + ")"
+	var union string
+	switch {
+	case includeInbound && includeOutbound:
+		union = "(" + inbound + ") UNION ALL (" + outbound + ")"
+	case includeInbound:
+		union = inbound
+	case includeOutbound:
+		union = outbound
+	default:
+		return []domain.RejectedDocResponse{}, 0, nil
+	}
 
 	// Count first — uses only the filter args bound so far (before limit/offset).
 	var total int

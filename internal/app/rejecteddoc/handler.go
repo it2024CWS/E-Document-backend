@@ -3,6 +3,7 @@ package rejecteddoc
 import (
 	"e-document-backend/internal/util"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,13 +29,15 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 // GetRejectedDocs godoc
 //
 //	@Summary		Get rejected documents report
-//	@Description	Report of rejected documents for the caller's own department (inbound + outbound), with optional date-range filters.
+//	@Description	Report of rejected documents (inbound + outbound). Admin and Secretary roles can filter by any department via dept_id; other roles are scoped to their own department.
 //	@Tags			rejected-docs
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			page		query		int		false	"Page number (default 1)"
 //	@Param			limit		query		int		false	"Items per page (default 10)"
+//	@Param			dept_id		query		string	false	"Department ID (Admin/Secretary only; ignored for other roles)"
+//	@Param			source		query		string	false	"Filter by source: inbound | outbound"
 //	@Param			start_date	query		string	false	"Start date (YYYY-MM-DD)"
 //	@Param			end_date	query		string	false	"End date (YYYY-MM-DD)"
 //	@Success		200			{object}	util.Response{data=[]domain.RejectedDocResponse}
@@ -44,16 +47,38 @@ func (h *Handler) RegisterRoutes(e *echo.Group, middleware ...echo.MiddlewareFun
 func (h *Handler) GetRejectedDocs(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	// Scope to the caller's own department
-	deptIDStr, ok := c.Get("dept_id").(string)
-	if !ok || deptIDStr == "" {
-		return util.HandleError(c, util.NewUnauthorizedError("department not assigned to user"))
+	roleName, _ := c.Get("role_name").(string)
+	canFilterAnyDept := strings.EqualFold(roleName, "Admin") ||
+		strings.EqualFold(roleName, "Secretary")
+
+	// Department scoping:
+	// - Admin / Secretary: dept_id query param is an optional filter (empty = all departments).
+	// - Others: always scoped to the caller's own department from the JWT.
+	var deptID *uuid.UUID
+	if canFilterAnyDept {
+		if v := strings.TrimSpace(c.QueryParam("dept_id")); v != "" {
+			parsed, err := uuid.Parse(v)
+			if err != nil {
+				return util.HandleError(c, util.NewValidationError("invalid dept_id"))
+			}
+			deptID = &parsed
+		}
+	} else {
+		deptIDStr, ok := c.Get("dept_id").(string)
+		if !ok || deptIDStr == "" {
+			return util.HandleError(c, util.NewUnauthorizedError("department not assigned to user"))
+		}
+		parsed, err := uuid.Parse(deptIDStr)
+		if err != nil {
+			return util.HandleError(c, util.NewUnauthorizedError("invalid department in token"))
+		}
+		deptID = &parsed
 	}
-	parsed, err := uuid.Parse(deptIDStr)
-	if err != nil {
-		return util.HandleError(c, util.NewUnauthorizedError("invalid department in token"))
+
+	source := strings.ToLower(strings.TrimSpace(c.QueryParam("source")))
+	if source != "" && source != "inbound" && source != "outbound" {
+		return util.HandleError(c, util.NewValidationError("source must be 'inbound' or 'outbound'"))
 	}
-	deptID := &parsed
 
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	if page <= 0 {
@@ -77,7 +102,7 @@ func (h *Handler) GetRejectedDocs(c echo.Context) error {
 		}
 	}
 
-	docs, total, err := h.service.GetRejectedDocs(ctx, deptID, start, end, page, limit)
+	docs, total, err := h.service.GetRejectedDocs(ctx, deptID, source, start, end, page, limit)
 	if err != nil {
 		return util.HandleError(c, err)
 	}
